@@ -1,8 +1,3 @@
-// Supabase চেক
-if (typeof supabase === 'undefined') {
-  alert("Supabase SDK ঠিকভাবে লোড হয়নি! HTML ফাইলে Supabase CDN লিঙ্ক চেক করুন।");
-}
-
 // Helper Function
 const getEl = (id) => document.getElementById(id);
 
@@ -11,15 +6,20 @@ const signupForm = getEl('signup-form') || getEl('register-form');
 if (signupForm) {
   signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    alert("সাইনআপ প্রসেস শুরু হচ্ছে..."); // সঙ্গে সঙ্গে ক্লিক ফিডব্যাক দেবে
 
     const fullName = getEl('fullname')?.value || '';
     const email = getEl('email')?.value || '';
     const password = getEl('password')?.value || '';
-    const currency = getEl('currency')?.value || 'BDT';
+    const currency = getEl('currency')?.value || 'SAR ﷼';
+
+    const submitBtn = signupForm.querySelector('button[type="submit"]');
+    if (submitBtn) {
+      submitBtn.innerText = "Processing...";
+      submitBtn.disabled = true;
+    }
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await window.sbClient.auth.signUp({
         email,
         password,
         options: { data: { full_name: fullName, currency } }
@@ -27,11 +27,12 @@ if (signupForm) {
 
       if (error) {
         alert("সাইনআপ এরর: " + error.message);
+        if (submitBtn) {
+          submitBtn.innerText = "Sign Up";
+          submitBtn.disabled = false;
+        }
       } else {
-        alert("সাইনআপ কোড পাঠানো হয়েছে! এবার OTP দিন।");
         window.userRegEmail = email;
-        
-        // OTP Step দেখানো
         if (getEl('signup-step') && getEl('otp-step')) {
           getEl('signup-step').classList.add('hidden');
           getEl('otp-step').classList.remove('hidden');
@@ -39,6 +40,10 @@ if (signupForm) {
       }
     } catch (err) {
       alert("সমস্যা হয়েছে: " + err.message);
+      if (submitBtn) {
+        submitBtn.innerText = "Sign Up";
+        submitBtn.disabled = false;
+      }
     }
   });
 }
@@ -51,10 +56,8 @@ if (otpForm) {
     const token = getEl('otp-code')?.value;
     const email = window.userRegEmail || getEl('email')?.value;
 
-    alert("OTP ভেরিফাই করা হচ্ছে...");
-
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
+      const { data, error } = await window.sbClient.auth.verifyOtp({
         email,
         token,
         type: 'signup'
@@ -63,7 +66,14 @@ if (otpForm) {
       if (error) {
         alert("ভুল OTP: " + error.message);
       } else {
-        alert("ভেরিফিকেশন সফল! ড্যাশবোর্ডে নিয়ে যাওয়া হচ্ছে...");
+        const user = data.user;
+        if (user) {
+          await window.sbClient.from('profiles').insert([{
+            id: user.id,
+            full_name: user.user_metadata.full_name,
+            currency: user.user_metadata.currency
+          }]);
+        }
         window.location.href = 'dashboard.html';
       }
     } catch (err) {
@@ -77,18 +87,16 @@ const loginForm = getEl('login-form');
 if (loginForm) {
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    alert("লগইন করা হচ্ছে...");
 
     const email = getEl('login-email')?.value;
     const password = getEl('login-password')?.value;
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await window.sbClient.auth.signInWithPassword({ email, password });
 
       if (error) {
         alert("লগইন ভুল হয়েছে: " + error.message);
       } else {
-        alert("লগইন সফল!");
         window.location.href = 'dashboard.html';
       }
     } catch (err) {
@@ -102,20 +110,19 @@ const forgotForm = getEl('forgot-form');
 if (forgotForm) {
   forgotForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    alert("পাসওয়ার্ড রিসেট ইমেইল পাঠানো হচ্ছে...");
 
     const email = getEl('reset-email')?.value;
     const redirectUrl = window.location.origin + window.location.pathname.replace('forgot-password.html', 'update-password.html');
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await window.sbClient.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
       });
 
       if (error) {
         alert("ইমেইল পাঠানো যায়নি: " + error.message);
       } else {
-        alert("আপনার ইমেইলে লিঙ্ক পাঠানো হয়েছে! দয়া করে ইমেলের Inbox এবং Spam ফোল্ডার চেক করুন।");
+        alert("আপনার ইমেইলে লিঙ্ক পাঠানো হয়েছে! দয়া করে Inbox এবং Spam ফোল্ডার চেক করুন।");
       }
     } catch (err) {
       alert("সমস্যা হয়েছে: " + err.message);
