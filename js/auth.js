@@ -1,131 +1,124 @@
-let userRegEmail = '';
+// Supabase চেক
+if (typeof supabase === 'undefined') {
+  alert("Supabase SDK ঠিকভাবে লোড হয়নি! HTML ফাইলে Supabase CDN লিঙ্ক চেক করুন।");
+}
 
-// Signup Logic
-const signupForm = document.getElementById('signup-form');
+// Helper Function
+const getEl = (id) => document.getElementById(id);
+
+// --- ১. সাইনআপ (SIGNUP) ---
+const signupForm = getEl('signup-form') || getEl('register-form');
 if (signupForm) {
   signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const fullName = document.getElementById('fullname').value;
-    const email = document.getElementById('email').value;
-    const currency = document.getElementById('currency').value;
-    const password = document.getElementById('password').value;
+    alert("সাইনআপ প্রসেস শুরু হচ্ছে..."); // সঙ্গে সঙ্গে ক্লিক ফিডব্যাক দেবে
 
-    userRegEmail = email;
-    const submitBtn = signupForm.querySelector('button[type="submit"]');
-    submitBtn.innerText = "Processing...";
-    submitBtn.disabled = true;
+    const fullName = getEl('fullname')?.value || '';
+    const email = getEl('email')?.value || '';
+    const password = getEl('password')?.value || '';
+    const currency = getEl('currency')?.value || 'BDT';
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { 
-        data: { full_name: fullName, currency } 
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: fullName, currency } }
+      });
+
+      if (error) {
+        alert("সাইনআপ এরর: " + error.message);
+      } else {
+        alert("সাইনআপ কোড পাঠানো হয়েছে! এবার OTP দিন।");
+        window.userRegEmail = email;
+        
+        // OTP Step দেখানো
+        if (getEl('signup-step') && getEl('otp-step')) {
+          getEl('signup-step').classList.add('hidden');
+          getEl('otp-step').classList.remove('hidden');
+        }
       }
-    });
-
-    if (error) {
-      alert("Error: " + error.message);
-      submitBtn.innerText = "Sign Up";
-      submitBtn.disabled = false;
-    } else {
-      document.getElementById('signup-step').classList.add('hidden');
-      document.getElementById('otp-step').classList.remove('hidden');
+    } catch (err) {
+      alert("সমস্যা হয়েছে: " + err.message);
     }
   });
 }
 
-// OTP Logic
-const otpForm = document.getElementById('otp-form');
+// --- ২. ওটিপি ভেরিফিকেশন (OTP VERIFICATION) ---
+const otpForm = getEl('otp-form');
 if (otpForm) {
   otpForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const token = document.getElementById('otp-code').value;
+    const token = getEl('otp-code')?.value;
+    const email = window.userRegEmail || getEl('email')?.value;
 
-    const { data, error } = await supabase.auth.verifyOtp({
-      email: userRegEmail,
-      token,
-      type: 'signup'
-    });
+    alert("OTP ভেরিফাই করা হচ্ছে...");
 
-    if (error) {
-      alert("Verification Failed: " + error.message);
-    } else {
-      const user = data.user;
-      if (user) {
-        await supabase.from('profiles').insert([{
-          id: user.id,
-          full_name: user.user_metadata.full_name,
-          currency: user.user_metadata.currency
-        }]);
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'signup'
+      });
+
+      if (error) {
+        alert("ভুল OTP: " + error.message);
+      } else {
+        alert("ভেরিফিকেশন সফল! ড্যাশবোর্ডে নিয়ে যাওয়া হচ্ছে...");
+        window.location.href = 'dashboard.html';
       }
-      window.location.href = 'dashboard.html';
+    } catch (err) {
+      alert("সমস্যা হয়েছে: " + err.message);
     }
   });
 }
 
-// Login Logic
-const loginForm = document.getElementById('login-form');
+// --- ৩. লগইন (LOGIN) ---
+const loginForm = getEl('login-form');
 if (loginForm) {
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('login-email').value;
-    const password = document.getElementById('login-password').value;
+    alert("লগইন করা হচ্ছে...");
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const email = getEl('login-email')?.value;
+    const password = getEl('login-password')?.value;
 
-    if (error) {
-      alert("Login Error: " + error.message);
-    } else {
-      window.location.href = 'dashboard.html';
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        alert("লগইন ভুল হয়েছে: " + error.message);
+      } else {
+        alert("লগইন সফল!");
+        window.location.href = 'dashboard.html';
+      }
+    } catch (err) {
+      alert("সমস্যা হয়েছে: " + err.message);
     }
   });
 }
 
-// Forgot Password Logic
-const forgotForm = document.getElementById('forgot-form');
+// --- ৪. ফরগেট পাসওয়ার্ড (FORGOT PASSWORD) ---
+const forgotForm = getEl('forgot-form');
 if (forgotForm) {
   forgotForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('reset-email').value;
-    const msg = document.getElementById('reset-msg');
-    msg.innerText = "Sending email...";
-    msg.style.color = "blue";
+    alert("পাসওয়ার্ড রিসেট ইমেইল পাঠানো হচ্ছে...");
 
+    const email = getEl('reset-email')?.value;
     const redirectUrl = window.location.origin + window.location.pathname.replace('forgot-password.html', 'update-password.html');
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectUrl,
-    });
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl,
+      });
 
-    if (error) {
-      msg.innerText = "Error: " + error.message;
-      msg.style.color = "red";
-    } else {
-      msg.innerText = "Check your email inbox/spam folder for the reset link!";
-      msg.style.color = "green";
-    }
-  });
-}
-
-// Update Password Logic
-const updatePassForm = document.getElementById('update-pass-form');
-if (updatePassForm) {
-  updatePassForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const newPassword = document.getElementById('new-password').value;
-    const msg = document.getElementById('update-msg');
-    msg.innerText = "Updating...";
-    msg.style.color = "blue";
-
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-
-    if (error) {
-      msg.innerText = "Error: " + error.message;
-      msg.style.color = "red";
-    } else {
-      msg.innerText = "Password updated! Redirecting to login...";
-      msg.style.color = "green";
-      setTimeout(() => { window.location.href = 'login.html'; }, 2500);
+      if (error) {
+        alert("ইমেইল পাঠানো যায়নি: " + error.message);
+      } else {
+        alert("আপনার ইমেইলে লিঙ্ক পাঠানো হয়েছে! দয়া করে ইমেলের Inbox এবং Spam ফোল্ডার চেক করুন।");
+      }
+    } catch (err) {
+      alert("সমস্যা হয়েছে: " + err.message);
     }
   });
 }
