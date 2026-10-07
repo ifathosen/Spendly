@@ -15,7 +15,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const { data: { user }, error: userError } = await dbClient.auth.getUser();
 
   if (userError || !user) {
-    // লগইন না থাকলে লগইন পেজে পাঠাবে
     window.location.href = 'index.html';
     return;
   }
@@ -61,7 +60,7 @@ async function loadTransactions() {
 
     if (error) {
       console.error(error);
-      if (recentListEl) recentListEl.innerHTML = '<p class="text-center py-4">No transactions found.</p>';
+      if (recentListEl) recentListEl.innerHTML = '<p class="text-center py-4 text-red-400">Failed to load transactions.</p>';
       return;
     }
 
@@ -81,14 +80,13 @@ async function loadTransactions() {
           totalExpense += amt;
         }
 
-        // রেন্টারিং ট্রানজেকশন আইটেম
         if (recentListEl) {
           const item = document.createElement('div');
-          item.className = 'flex justify-between items-center p-3 my-2 bg-gray-800 rounded';
+          item.className = 'flex justify-between items-center p-3 my-2 bg-gray-800 rounded border border-gray-700';
           item.innerHTML = `
             <div>
-              <p class="font-bold">${t.title}</p>
-              <span class="text-xs opacity-60">${t.category || 'General'}</span>
+              <p class="font-bold text-white">${t.title}</p>
+              <span class="text-xs text-gray-400">${t.category || 'General'}</span>
             </div>
             <div class="${t.type === 'Income' || t.type === 'income' ? 'text-green-400' : 'text-red-400'} font-bold">
               ${t.type === 'Income' || t.type === 'income' ? '+' : '-'}${userCurrency} ${amt.toFixed(2)}
@@ -111,19 +109,28 @@ async function loadTransactions() {
   }
 }
 
-// ৪. নতুন ট্রানজেকশন সেভ করা
+// ৪. নতুন ট্রানজেকশন সেভ করা (স্মার্ট ইনপুট সিলেক্টর সহ)
 const transForm = getEl('transaction-form') || document.querySelector('form');
 if (transForm) {
   transForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const title = getEl('title')?.value || getEl('trans-title')?.value;
-    const amount = parseFloat(getEl('amount')?.value || getEl('trans-amount')?.value);
-    const type = getEl('type')?.value || getEl('trans-type')?.value || 'Expense';
-    const category = getEl('category')?.value || getEl('trans-category')?.value || 'General';
+    const inputs = transForm.querySelectorAll('input');
+    const selects = transForm.querySelectorAll('select');
 
-    if (!title || !amount) {
-      alert('Please fill in Title and Amount');
+    // ID বা ইনপুট পজিশন থেকে ফিল্ড সনাক্তকরণ
+    const titleEl = getEl('title') || getEl('trans-title') || getEl('transaction-title') || inputs[0];
+    const amountEl = getEl('amount') || getEl('trans-amount') || getEl('transaction-amount') || inputs[1];
+    const typeEl = getEl('type') || getEl('trans-type') || selects[0];
+    const categoryEl = getEl('category') || getEl('trans-category') || selects[1];
+
+    const title = titleEl ? titleEl.value.trim() : '';
+    const amount = amountEl ? parseFloat(amountEl.value) : 0;
+    const type = typeEl ? typeEl.value : 'Expense';
+    const category = categoryEl ? categoryEl.value : 'General';
+
+    if (!title || !amount || isNaN(amount)) {
+      alert('Please fill in both Title and Amount properly.');
       return;
     }
 
@@ -162,7 +169,7 @@ if (transForm) {
 }
 
 // ৫. লগআউট
-const logoutBtn = getEl('logout-btn') || document.querySelector('button:contains("Logout")');
+const logoutBtn = getEl('logout-btn') || document.querySelector('button[onclick*="logout"]');
 if (logoutBtn) {
   logoutBtn.addEventListener('click', async () => {
     await dbClient.auth.signOut();
