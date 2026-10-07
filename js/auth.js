@@ -1,11 +1,15 @@
-// Helper Function
 const getEl = (id) => document.getElementById(id);
 
-// --- ১. সাইনআপ (SIGNUP) ---
+// 1. SIGNUP
 const signupForm = getEl('signup-form') || getEl('register-form');
 if (signupForm) {
   signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    if (!dbClient) {
+      alert('Supabase connection failed. Please refresh the page.');
+      return;
+    }
 
     const fullName = getEl('fullname')?.value || '';
     const email = getEl('email')?.value || '';
@@ -14,21 +18,21 @@ if (signupForm) {
 
     const submitBtn = signupForm.querySelector('button[type="submit"]');
     if (submitBtn) {
-      submitBtn.innerText = "Processing...";
+      submitBtn.innerText = 'Processing...';
       submitBtn.disabled = true;
     }
 
     try {
-      const { data, error } = await window.sbClient.auth.signUp({
+      const { data, error } = await dbClient.auth.signUp({
         email,
         password,
         options: { data: { full_name: fullName, currency } }
       });
 
       if (error) {
-        alert("সাইনআপ এরর: " + error.message);
+        alert('Signup Error: ' + error.message);
         if (submitBtn) {
-          submitBtn.innerText = "Sign Up";
+          submitBtn.innerText = 'Sign Up';
           submitBtn.disabled = false;
         }
       } else {
@@ -39,16 +43,16 @@ if (signupForm) {
         }
       }
     } catch (err) {
-      alert("সমস্যা হয়েছে: " + err.message);
+      alert('Error: ' + err.message);
       if (submitBtn) {
-        submitBtn.innerText = "Sign Up";
+        submitBtn.innerText = 'Sign Up';
         submitBtn.disabled = false;
       }
     }
   });
 }
 
-// --- ২. ওটিপি ভেরিফিকেশন (OTP VERIFICATION) ---
+// 2. OTP VERIFICATION
 const otpForm = getEl('otp-form');
 if (otpForm) {
   otpForm.addEventListener('submit', async (e) => {
@@ -57,18 +61,18 @@ if (otpForm) {
     const email = window.userRegEmail || getEl('email')?.value;
 
     try {
-      const { data, error } = await window.sbClient.auth.verifyOtp({
+      const { data, error } = await dbClient.auth.verifyOtp({
         email,
         token,
         type: 'signup'
       });
 
       if (error) {
-        alert("ভুল OTP: " + error.message);
+        alert('OTP Verification Failed: ' + error.message);
       } else {
         const user = data.user;
         if (user) {
-          await window.sbClient.from('profiles').insert([{
+          await dbClient.from('profiles').insert([{
             id: user.id,
             full_name: user.user_metadata.full_name,
             currency: user.user_metadata.currency
@@ -77,12 +81,12 @@ if (otpForm) {
         window.location.href = 'dashboard.html';
       }
     } catch (err) {
-      alert("সমস্যা হয়েছে: " + err.message);
+      alert('Error: ' + err.message);
     }
   });
 }
 
-// --- ৩. লগইন (LOGIN) ---
+// 3. LOGIN
 const loginForm = getEl('login-form');
 if (loginForm) {
   loginForm.addEventListener('submit', async (e) => {
@@ -92,20 +96,20 @@ if (loginForm) {
     const password = getEl('login-password')?.value;
 
     try {
-      const { error } = await window.sbClient.auth.signInWithPassword({ email, password });
+      const { error } = await dbClient.auth.signInWithPassword({ email, password });
 
       if (error) {
-        alert("লগইন ভুল হয়েছে: " + error.message);
+        alert('Login Failed: ' + error.message);
       } else {
         window.location.href = 'dashboard.html';
       }
     } catch (err) {
-      alert("সমস্যা হয়েছে: " + err.message);
+      alert('Error: ' + err.message);
     }
   });
 }
 
-// --- ৪. ফরগেট পাসওয়ার্ড (FORGOT PASSWORD) ---
+// 4. FORGOT PASSWORD
 const forgotForm = getEl('forgot-form');
 if (forgotForm) {
   forgotForm.addEventListener('submit', async (e) => {
@@ -115,17 +119,17 @@ if (forgotForm) {
     const redirectUrl = window.location.origin + window.location.pathname.replace('forgot-password.html', 'update-password.html');
 
     try {
-      const { error } = await window.sbClient.auth.resetPasswordForEmail(email, {
+      const { error } = await dbClient.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
       });
 
       if (error) {
-        alert("ইমেইল পাঠানো যায়নি: " + error.message);
+        alert('Reset Link Failed: ' + error.message);
       } else {
-        alert("আপনার ইমেইলে লিঙ্ক পাঠানো হয়েছে! দয়া করে Inbox এবং Spam ফোল্ডার চেক করুন।");
+        alert('Password reset link sent! Check your email inbox or spam folder.');
       }
     } catch (err) {
-      alert("সমস্যা হয়েছে: " + err.message);
+      alert('Error: ' + err.message);
     }
   });
 }
