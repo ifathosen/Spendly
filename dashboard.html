@@ -1,125 +1,232 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard | Spendly</title>
+  <title>Spendly - Dashboard</title>
+  
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
 </head>
-<body class="min-h-screen">
+<body class="bg-[#090d16] text-slate-100 font-sans min-h-screen selection:bg-indigo-500 selection:text-white">
 
-  <!-- Header -->
-  <header class="glass-card rounded-none border-x-0 border-t-0 px-6 py-4 flex justify-between items-center">
-    <div class="flex items-center gap-3">
-      <i class="fa-solid fa-wallet text-indigo-400 text-2xl"></i>
-      <h1 class="font-bold text-lg hidden sm:block" data-i18n="brandName">Spendly</h1>
-    </div>
-    <div class="flex items-center gap-4">
-      <button id="lang-toggle-btn" class="px-3 py-1 rounded-lg bg-slate-800 text-xs font-semibold text-indigo-400">🇧🇩 বাংলা</button>
-      <span id="user-display-name" class="text-sm font-medium text-slate-300">Loading...</span>
-      <button id="logout-btn" class="px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-semibold transition" data-i18n="logout">Logout</button>
-    </div>
-  </header>
-
-  <!-- Content -->
-  <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
-    
-    <!-- Balance Summary -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div class="glass-card p-6 flex items-center justify-between">
-        <div>
-          <p class="text-xs text-slate-400" data-i18n="totalBalance">Total Balance</p>
-          <h3 id="stat-balance" class="text-2xl font-bold mt-1 text-slate-100">0.00</h3>
+  <!-- Top Navigation Bar -->
+  <nav class="sticky top-0 z-50 backdrop-blur-xl bg-[#090d16]/80 border-b border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i class="fa-solid fa-wallet text-white text-lg"></i>
         </div>
-        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-          <i class="fa-solid fa-scale-balanced text-xl"></i>
+        <div>
+          <span class="text-xl font-extrabold bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">Spendly</span>
+          <span class="hidden sm:inline-block ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Pro</span>
         </div>
       </div>
 
-      <div class="glass-card p-6 flex items-center justify-between">
-        <div>
-          <p class="text-xs text-slate-400" data-i18n="totalIncome">Total Income</p>
-          <h3 id="stat-income" class="text-2xl font-bold mt-1 text-emerald-400">+0.00</h3>
-        </div>
-        <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-          <i class="fa-solid fa-arrow-trend-up text-xl"></i>
-        </div>
-      </div>
-
-      <div class="glass-card p-6 flex items-center justify-between">
-        <div>
-          <p class="text-xs text-slate-400" data-i18n="totalExpense">Total Expense</p>
-          <h3 id="stat-expense" class="text-2xl font-bold mt-1 text-rose-400">-0.00</h3>
-        </div>
-        <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
-          <i class="fa-solid fa-arrow-trend-down text-xl"></i>
-        </div>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <!-- Form -->
-      <div class="glass-card p-6 h-fit">
-        <h3 class="text-lg font-bold mb-4 flex items-center gap-2" data-i18n="addTx">Add Transaction</h3>
-        
-        <form id="add-transaction-form" class="space-y-4">
-          <div>
-            <label class="block text-xs mb-1 text-slate-300" data-i18n="title">Title</label>
-            <input type="text" id="tx-title" required class="w-full px-3 py-2 rounded-lg auth-input" placeholder="e.g. Salary, Groceries">
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3 bg-slate-900/80 border border-slate-800 rounded-full py-1.5 px-3.5 shadow-inner">
+          <div class="w-7 h-7 rounded-full bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-indigo-300 text-xs font-bold" id="user-avatar">
+            <i class="fa-solid fa-user"></i>
           </div>
+          <span class="text-xs sm:text-sm font-medium text-slate-300" id="user-name">Loading...</span>
+        </div>
 
-          <div>
-            <label class="block text-xs mb-1 text-slate-300" data-i18n="amount">Amount</label>
-            <input type="number" step="0.01" id="tx-amount" required class="w-full px-3 py-2 rounded-lg auth-input" placeholder="0.00">
+        <button id="logout-btn" class="flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-400 hover:text-rose-400 bg-slate-900 hover:bg-rose-500/10 border border-slate-800 hover:border-rose-500/30 rounded-xl transition-all duration-200">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i>
+          <span class="hidden sm:inline">Logout</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Summary Metrics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+      
+      <!-- Total Balance Card -->
+      <div class="relative overflow-hidden bg-gradient-to-br from-indigo-900/40 via-slate-900 to-slate-900 border border-indigo-500/30 rounded-2xl p-6 shadow-xl shadow-indigo-950/20">
+        <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-xs font-bold uppercase tracking-wider text-indigo-300/80">Total Balance</span>
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+            <i class="fa-solid fa-scale-balanced text-base"></i>
           </div>
+        </div>
+        <div class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-1" id="total-balance">
+          0.00
+        </div>
+        <p class="text-xs text-slate-400">Net available funds</p>
+      </div>
 
-          <div class="grid grid-cols-2 gap-3">
+      <!-- Total Income Card -->
+      <div class="bg-slate-900/90 border border-slate-800 hover:border-emerald-500/30 rounded-2xl p-6 transition-all duration-300 shadow-lg">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-400/80">Total Income</span>
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <i class="fa-solid fa-arrow-down-left text-base"></i>
+          </div>
+        </div>
+        <div class="text-3xl sm:text-4xl font-extrabold tracking-tight text-emerald-400 mb-1" id="total-income">
+          +0.00
+        </div>
+        <p class="text-xs text-slate-400">Total earned this period</p>
+      </div>
+
+      <!-- Total Expense Card -->
+      <div class="bg-slate-900/90 border border-slate-800 hover:border-rose-500/30 rounded-2xl p-6 transition-all duration-300 shadow-lg">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-xs font-bold uppercase tracking-wider text-rose-400/80">Total Expense</span>
+          <div class="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+            <i class="fa-solid fa-arrow-up-right text-base"></i>
+          </div>
+        </div>
+        <div class="text-3xl sm:text-4xl font-extrabold tracking-tight text-rose-400 mb-1" id="total-expense">
+          -0.00
+        </div>
+        <p class="text-xs text-slate-400">Total spent this period</p>
+      </div>
+
+    </div>
+
+    <!-- Content Workspace -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+      <!-- Transaction Form Section -->
+      <div class="lg:col-span-5">
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl sticky top-24">
+          <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
             <div>
-              <label class="block text-xs mb-1 text-slate-300" data-i18n="type">Type</label>
-              <select id="tx-type" class="w-full px-3 py-2 rounded-lg auth-input bg-slate-900">
-                <option value="expense" data-i18n="expense">Expense</option>
-                <option value="income" data-i18n="income">Income</option>
-              </select>
+              <h2 class="text-lg font-bold text-white flex items-center gap-2" id="form-title">
+                <i class="fa-solid fa-circle-plus text-indigo-400"></i> Add Transaction
+              </h2>
+              <p class="text-xs text-slate-400 mt-0.5" id="form-subtitle">Record a new income or expense</p>
+            </div>
+            <button type="button" id="cancel-edit-btn" class="hidden text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+              Cancel
+            </button>
+          </div>
+
+          <form id="transaction-form" class="space-y-4">
+            <input type="hidden" id="trans-id" value="">
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Title</label>
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <i class="fa-solid fa-pen-nib text-sm"></i>
+                </div>
+                <input type="text" id="trans-title" placeholder="e.g. Salary, Groceries, Rent" required
+                  class="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+              </div>
             </div>
 
             <div>
-              <label class="block text-xs mb-1 text-slate-300" data-i18n="category">Category</label>
-              <select id="tx-category" class="w-full px-3 py-2 rounded-lg auth-input bg-slate-900">
-                <option value="Food">Food</option>
-                <option value="Shopping">Shopping</option>
-                <option value="Bills">Bills & Utilities</option>
-                <option value="Transport">Transport</option>
-                <option value="Salary">Salary</option>
-                <option value="Others">Others</option>
-              </select>
+              <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Amount</label>
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <i class="fa-solid fa-coins text-sm"></i>
+                </div>
+                <input type="number" step="0.01" id="trans-amount" placeholder="0.00" required
+                  class="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Type</label>
+                <div class="relative">
+                  <select id="trans-type" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition appearance-none cursor-pointer">
+                    <option value="Expense">Expense</option>
+                    <option value="Income">Income</option>
+                  </select>
+                  <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-500">
+                    <i class="fa-solid fa-chevron-down text-xs"></i>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Category</label>
+                <div class="relative">
+                  <select id="trans-category" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition appearance-none cursor-pointer">
+                    <option value="Food">Food</option>
+                    <option value="Salary">Salary</option>
+                    <option value="Shopping">Shopping</option>
+                    <option value="Bills">Bills & Utilities</option>
+                    <option value="Entertainment">Entertainment</option>
+                    <option value="Investment">Investment</option>
+                    <option value="Transport">Transport</option>
+                    <option value="General">General</option>
+                  </select>
+                  <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-500">
+                    <i class="fa-solid fa-chevron-down text-xs"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" id="form-submit-btn" class="w-full py-3 mt-2 px-4 bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-sm rounded-xl shadow-lg shadow-indigo-600/30 hover:shadow-indigo-600/50 transition duration-200 active:scale-[0.99] flex items-center justify-center gap-2">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>Save Transaction</span>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Transactions List Section -->
+      <div class="lg:col-span-7">
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
+            <div>
+              <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-list-check text-indigo-400"></i> Recent Transactions
+              </h2>
+              <p class="text-xs text-slate-400 mt-0.5">Manage and view your financial records</p>
+            </div>
+            
+            <div class="relative min-w-[160px]">
+              <input type="text" id="search-input" placeholder="Search..." class="w-full pl-8 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+              <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-xs text-slate-500"></i>
             </div>
           </div>
 
-          <div>
-            <label class="block text-xs mb-1 text-slate-300" data-i18n="date">Date</label>
-            <input type="date" id="tx-date" required class="w-full px-3 py-2 rounded-lg auth-input">
+          <div id="transactions-list" class="space-y-3">
+            <div class="text-center py-12 text-slate-500">
+              <i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-indigo-400"></i>
+              <p class="text-sm">Loading transactions...</p>
+            </div>
           </div>
-
-          <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-semibold transition text-sm" data-i18n="save">Save Transaction</button>
-        </form>
-      </div>
-
-      <!-- History -->
-      <div class="glass-card p-6 lg:col-span-2">
-        <h3 class="text-lg font-bold mb-4 flex items-center gap-2" data-i18n="recentTx">Recent Transactions</h3>
-        <div id="transaction-list" class="space-y-3">
-          <p class="text-slate-500 text-sm text-center py-8">Loading...</p>
         </div>
       </div>
-    </div>
 
+    </div>
   </main>
 
-  <script src="js/config.js"></script>
-  <script src="js/lang.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase.js"></script>
   <script src="js/dashboard.js"></script>
 </body>
 </html>
