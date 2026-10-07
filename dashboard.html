@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard | Spendly</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="min-h-screen">
+
+  <!-- Header -->
+  <header class="glass-card rounded-none border-x-0 border-t-0 px-6 py-4 flex justify-between items-center">
+    <div class="flex items-center gap-3">
+      <i class="fa-solid fa-wallet text-indigo-400 text-2xl"></i>
+      <h1 class="font-bold text-lg hidden sm:block" data-i18n="brandName">Spendly</h1>
+    </div>
+    <div class="flex items-center gap-4">
+      <button id="lang-toggle-btn" class="px-3 py-1 rounded-lg bg-slate-800 text-xs font-semibold text-indigo-400">🇧🇩 বাংলা</button>
+      <span id="user-display-name" class="text-sm font-medium text-slate-300">Loading...</span>
+      <button id="logout-btn" class="px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-semibold transition" data-i18n="logout">Logout</button>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+    
+    <!-- Balance Summary -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="glass-card p-6 flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-400" data-i18n="totalBalance">Total Balance</p>
+          <h3 id="stat-balance" class="text-2xl font-bold mt-1 text-slate-100">0.00</h3>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+          <i class="fa-solid fa-scale-balanced text-xl"></i>
+        </div>
+      </div>
+
+      <div class="glass-card p-6 flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-400" data-i18n="totalIncome">Total Income</p>
+          <h3 id="stat-income" class="text-2xl font-bold mt-1 text-emerald-400">+0.00</h3>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+          <i class="fa-solid fa-arrow-trend-up text-xl"></i>
+        </div>
+      </div>
+
+      <div class="glass-card p-6 flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-400" data-i18n="totalExpense">Total Expense</p>
+          <h3 id="stat-expense" class="text-2xl font-bold mt-1 text-rose-400">-0.00</h3>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+          <i class="fa-solid fa-arrow-trend-down text-xl"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Form -->
+      <div class="glass-card p-6 h-fit">
+        <h3 class="text-lg font-bold mb-4 flex items-center gap-2" data-i18n="addTx">Add Transaction</h3>
+        
+        <form id="add-transaction-form" class="space-y-4">
+          <div>
+            <label class="block text-xs mb-1 text-slate-300" data-i18n="title">Title</label>
+            <input type="text" id="tx-title" required class="w-full px-3 py-2 rounded-lg auth-input" placeholder="e.g. Salary, Groceries">
+          </div>
+
+          <div>
+            <label class="block text-xs mb-1 text-slate-300" data-i18n="amount">Amount</label>
+            <input type="number" step="0.01" id="tx-amount" required class="w-full px-3 py-2 rounded-lg auth-input" placeholder="0.00">
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs mb-1 text-slate-300" data-i18n="type">Type</label>
+              <select id="tx-type" class="w-full px-3 py-2 rounded-lg auth-input bg-slate-900">
+                <option value="expense" data-i18n="expense">Expense</option>
+                <option value="income" data-i18n="income">Income</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs mb-1 text-slate-300" data-i18n="category">Category</label>
+              <select id="tx-category" class="w-full px-3 py-2 rounded-lg auth-input bg-slate-900">
+                <option value="Food">Food</option>
+                <option value="Shopping">Shopping</option>
+                <option value="Bills">Bills & Utilities</option>
+                <option value="Transport">Transport</option>
+                <option value="Salary">Salary</option>
+                <option value="Others">Others</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs mb-1 text-slate-300" data-i18n="date">Date</label>
+            <input type="date" id="tx-date" required class="w-full px-3 py-2 rounded-lg auth-input">
+          </div>
+
+          <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-semibold transition text-sm" data-i18n="save">Save Transaction</button>
+        </form>
+      </div>
+
+      <!-- History -->
+      <div class="glass-card p-6 lg:col-span-2">
+        <h3 class="text-lg font-bold mb-4 flex items-center gap-2" data-i18n="recentTx">Recent Transactions</h3>
+        <div id="transaction-list" class="space-y-3">
+          <p class="text-slate-500 text-sm text-center py-8">Loading...</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/lang.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>
