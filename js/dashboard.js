@@ -4,7 +4,7 @@ let currentUser = null;
 let userCurrency = 'SAR';
 
 document.addEventListener('DOMContentLoaded', async () => {
-  if (!dbClient) {
+  if (typeof dbClient === 'undefined' || !dbClient) {
     alert("Supabase connection failed!");
     return;
   }
@@ -24,16 +24,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadUserProfile() {
   try {
-    const { data, error } = await dbClient
+    const { data } = await dbClient
       .from('profiles')
       .select('full_name, currency')
       .eq('id', currentUser.id)
-      .single();
+      .maybeSingle();
 
-    if (data) {
-      if (data.currency) userCurrency = data.currency;
-      const userNameEl = getEl('user-name') || getEl('profile-name');
-      if (userNameEl) userNameEl.innerText = data.full_name || currentUser.email;
+    if (data && data.currency) {
+      userCurrency = data.currency;
+    }
+
+    const userNameEl = getEl('user-name') || 
+                       getEl('profile-name') || 
+                       document.querySelector('span[class*="user"]') ||
+                       document.querySelector('header span') ||
+                       document.querySelector('.loading');
+
+    if (userNameEl) {
+      userNameEl.innerText = (data && data.full_name) ? data.full_name : currentUser.email.split('@')[0];
     }
   } catch (err) {
     console.error('Profile load error:', err);
@@ -41,7 +49,9 @@ async function loadUserProfile() {
 }
 
 async function loadTransactions() {
-  const recentListEl = getEl('recent-transactions') || getEl('transaction-list');
+  const recentListEl = getEl('recent-transactions') || 
+                       getEl('transaction-list') || 
+                       document.querySelector('.recent-transactions');
   
   try {
     const { data: transactions, error } = await dbClient
@@ -66,7 +76,9 @@ async function loadTransactions() {
     } else {
       transactions.forEach(t => {
         const amt = parseFloat(t.amount) || 0;
-        if (t.type === 'Income' || t.type === 'income') {
+        const isIncome = (t.type && t.type.toLowerCase() === 'income');
+
+        if (isIncome) {
           totalIncome += amt;
         } else {
           totalExpense += amt;
@@ -80,8 +92,8 @@ async function loadTransactions() {
               <p class="font-bold text-white">${t.title}</p>
               <span class="text-xs text-gray-400">${t.category || 'General'}</span>
             </div>
-            <div class="${t.type === 'Income' || t.type === 'income' ? 'text-green-400' : 'text-red-400'} font-bold">
-              ${t.type === 'Income' || t.type === 'income' ? '+' : '-'}${userCurrency} ${amt.toFixed(2)}
+            <div class="${isIncome ? 'text-green-400' : 'text-red-400'} font-bold">
+              ${isIncome ? '+' : '-'}${userCurrency} ${amt.toFixed(2)}
             </div>
           `;
           recentListEl.appendChild(item);
@@ -89,15 +101,33 @@ async function loadTransactions() {
       });
     }
 
-    const balance = totalIncome - totalExpense;
-    if (getEl('total-balance')) getEl('total-balance').innerText = `${userCurrency} ${balance.toFixed(2)}`;
-    if (getEl('total-income')) getEl('total-income').innerText = `+${userCurrency} ${totalIncome.toFixed(2)}`;
-    if (getEl('total-expense')) getEl('total-expense').innerText = `-${userCurrency} ${totalExpense.toFixed(2)}`;
+    const totalBalance = totalIncome - totalExpense;
+
+    updateCardValues(totalBalance, totalIncome, totalExpense);
 
   } catch (err) {
     console.error(err);
     if (recentListEl) recentListEl.innerHTML = '<p class="text-center py-4 text-red-400">Error loading data.</p>';
   }
+}
+
+function updateCardValues(balance, income, expense) {
+  let balEl = getEl('total-balance') || getEl('balance') || getEl('balance-amount');
+  let incEl = getEl('total-income') || getEl('income') || getEl('income-amount');
+  let expEl = getEl('total-expense') || getEl('expense') || getEl('expense-amount');
+
+  if (!balEl || !incEl || !expEl) {
+    const cards = document.querySelectorAll('div[class*="grid"] > div, .card');
+    if (cards.length >= 3) {
+      if (!balEl) balEl = cards[0].querySelector('h2, h3, p, span, div');
+      if (!incEl) incEl = cards[1].querySelector('h2, h3, p, span, div');
+      if (!expEl) expEl = cards[2].querySelector('h2, h3, p, span, div');
+    }
+  }
+
+  if (balEl) balEl.innerText = `${userCurrency} ${balance.toFixed(2)}`;
+  if (incEl) incEl.innerText = `+${userCurrency} ${income.toFixed(2)}`;
+  if (expEl) expEl.innerText = `-${userCurrency} ${expense.toFixed(2)}`;
 }
 
 const transForm = getEl('transaction-form') || document.querySelector('form');
@@ -108,13 +138,11 @@ if (transForm) {
 
     const titleEl = getEl('title') || 
                     getEl('trans-title') || 
-                    transForm.querySelector('input[placeholder*="Salary"]') || 
                     transForm.querySelector('input[type="text"]');
 
     const amountEl = getEl('amount') || 
                      getEl('trans-amount') || 
-                     transForm.querySelector('input[type="number"]') || 
-                     transForm.querySelector('input[placeholder="0.00"]');
+                     transForm.querySelector('input[type="number"]');
 
     const typeEl = getEl('type') || 
                    getEl('trans-type') || 
