@@ -1,4 +1,4 @@
-const supabase = window.sbClient;
+const supabase = dbClient;
 
 let currentUser = null;
 let userCurrency = 'SAR ﷼';
