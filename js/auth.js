@@ -36,10 +36,23 @@ if (signupForm) {
           submitBtn.disabled = false;
         }
       } else {
-        window.userRegEmail = email;
-        if (getEl('signup-step') && getEl('otp-step')) {
-          getEl('signup-step').classList.add('hidden');
-          getEl('otp-step').classList.remove('hidden');
+        // Confirm Email বন্ধ থাকলে সেশন তৈরি হয়ে যাবে এবং সরাসরি ড্যাশবোর্ডে যাবে
+        if (data.session) {
+          if (data.user) {
+            await dbClient.from('profiles').insert([{
+              id: data.user.id,
+              full_name: data.user.user_metadata.full_name,
+              currency: data.user.user_metadata.currency
+            }]);
+          }
+          window.location.href = 'dashboard.html';
+        } else {
+          // Confirm Email চালু থাকলে OTP পেজ দেখাবে
+          window.userRegEmail = email;
+          if (getEl('signup-step') && getEl('otp-step')) {
+            getEl('signup-step').classList.add('hidden');
+            getEl('otp-step').classList.remove('hidden');
+          }
         }
       }
     } catch (err) {
