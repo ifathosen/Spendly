@@ -1,138 +1,171 @@
-const supabase = dbClient;
+// Helper Function
+const getEl = (id) => document.getElementById(id);
 
 let currentUser = null;
-let userCurrency = 'SAR ﷼';
+let userCurrency = 'SAR';
 
-window.addEventListener('DOMContentLoaded', async () => {
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session) {
-    window.location.href = 'login.html';
+// পেজ লোড হওয়ার সাথে সাথেই ডাটা ফেচ শুরু হবে
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!dbClient) {
+    alert("Supabase connection failed!");
     return;
   }
 
-  currentUser = session.user;
+  // ১. ইউজার সেশন চেক
+  const { data: { user }, error: userError } = await dbClient.auth.getUser();
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', currentUser.id)
-    .single();
-
-  if (profile) {
-    document.getElementById('user-display-name').innerText = profile.full_name;
-    userCurrency = profile.currency || 'SAR ﷼';
+  if (userError || !user) {
+    // লগইন না থাকলে লগইন পেজে পাঠাবে
+    window.location.href = 'index.html';
+    return;
   }
 
-  document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
-  loadTransactions();
+  currentUser = user;
+
+  // ২. প্রোফাইল ও কারেন্সি লোড
+  await loadUserProfile();
+
+  // ৩. লেনদেনের ডাটা লোড
+  await loadTransactions();
 });
 
-const logoutBtn = document.getElementById('logout-btn');
-if(logoutBtn) {
-  logoutBtn.onclick = async () => {
-    await supabase.auth.signOut();
-    window.location.href = 'login.html';
-  };
+// প্রোফাইল তথ্য লোড করা
+async function loadUserProfile() {
+  try {
+    const { data, error } = await dbClient
+      .from('profiles')
+      .select('full_name, currency')
+      .eq('id', currentUser.id)
+      .single();
+
+    if (data) {
+      if (data.currency) userCurrency = data.currency;
+      const userNameEl = getEl('user-name') || getEl('profile-name');
+      if (userNameEl) userNameEl.innerText = data.full_name || currentUser.email;
+    }
+  } catch (err) {
+    console.log('Profile load error:', err);
+  }
 }
 
-const addTxForm = document.getElementById('add-transaction-form');
-if(addTxForm) {
-  addTxForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const title = document.getElementById('tx-title').value;
-    const amount = parseFloat(document.getElementById('tx-amount').value);
-    const type = document.getElementById('tx-type').value;
-    const category = document.getElementById('tx-category').value;
-    const date = document.getElementById('tx-date').value;
-
-    const { error } = await supabase.from('expenses').insert([{
-      user_id: currentUser.id,
-      title,
-      amount,
-      type,
-      category,
-      date
-    }]);
+// লেনদেনের ডাটা লোড ও গণনা করা
+async function loadTransactions() {
+  const recentListEl = getEl('recent-transactions') || getEl('transaction-list');
+  
+  try {
+    const { data: transactions, error } = await dbClient
+      .from('transactions')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false });
 
     if (error) {
-      alert(error.message);
+      console.error(error);
+      if (recentListEl) recentListEl.innerHTML = '<p class="text-center py-4">No transactions found.</p>';
+      return;
+    }
+
+    let totalIncome = 0;
+    let totalExpense = 0;
+
+    if (recentListEl) recentListEl.innerHTML = '';
+
+    if (!transactions || transactions.length === 0) {
+      if (recentListEl) recentListEl.innerHTML = '<p class="text-center py-4 opacity-50">No transactions recorded yet.</p>';
     } else {
-      addTxForm.reset();
-      document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
-      loadTransactions();
+      transactions.forEach(t => {
+        const amt = parseFloat(t.amount) || 0;
+        if (t.type === 'Income' || t.type === 'income') {
+          totalIncome += amt;
+        } else {
+          totalExpense += amt;
+        }
+
+        // রেন্টারিং ট্রানজেকশন আইটেম
+        if (recentListEl) {
+          const item = document.createElement('div');
+          item.className = 'flex justify-between items-center p-3 my-2 bg-gray-800 rounded';
+          item.innerHTML = `
+            <div>
+              <p class="font-bold">${t.title}</p>
+              <span class="text-xs opacity-60">${t.category || 'General'}</span>
+            </div>
+            <div class="${t.type === 'Income' || t.type === 'income' ? 'text-green-400' : 'text-red-400'} font-bold">
+              ${t.type === 'Income' || t.type === 'income' ? '+' : '-'}${userCurrency} ${amt.toFixed(2)}
+            </div>
+          `;
+          recentListEl.appendChild(item);
+        }
+      });
+    }
+
+    // কার্ড ব্যালেন্স আপডেট
+    const balance = totalIncome - totalExpense;
+    if (getEl('total-balance')) getEl('total-balance').innerText = `${userCurrency} ${balance.toFixed(2)}`;
+    if (getEl('total-income')) getEl('total-income').innerText = `+${userCurrency} ${totalIncome.toFixed(2)}`;
+    if (getEl('total-expense')) getEl('total-expense').innerText = `-${userCurrency} ${totalExpense.toFixed(2)}`;
+
+  } catch (err) {
+    console.error(err);
+    if (recentListEl) recentListEl.innerHTML = '<p class="text-center py-4 text-red-400">Error loading data.</p>';
+  }
+}
+
+// ৪. নতুন ট্রানজেকশন সেভ করা
+const transForm = getEl('transaction-form') || document.querySelector('form');
+if (transForm) {
+  transForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const title = getEl('title')?.value || getEl('trans-title')?.value;
+    const amount = parseFloat(getEl('amount')?.value || getEl('trans-amount')?.value);
+    const type = getEl('type')?.value || getEl('trans-type')?.value || 'Expense';
+    const category = getEl('category')?.value || getEl('trans-category')?.value || 'General';
+
+    if (!title || !amount) {
+      alert('Please fill in Title and Amount');
+      return;
+    }
+
+    const saveBtn = transForm.querySelector('button[type="submit"]');
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerText = 'Saving...';
+    }
+
+    try {
+      const { error } = await dbClient
+        .from('transactions')
+        .insert([{
+          user_id: currentUser.id,
+          title,
+          amount,
+          type,
+          category
+        }]);
+
+      if (error) {
+        alert('Failed to save transaction: ' + error.message);
+      } else {
+        transForm.reset();
+        await loadTransactions();
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerText = 'Save Transaction';
+      }
     }
   });
 }
 
-async function loadTransactions() {
-  const listContainer = document.getElementById('transaction-list');
-  
-  const { data: transactions, error } = await supabase
-    .from('expenses')
-    .select('*')
-    .eq('user_id', currentUser.id)
-    .order('date', { ascending: false });
-
-  if (error || !transactions) {
-    listContainer.innerHTML = `<p class="text-red-400 text-center">Failed to load data.</p>`;
-    return;
-  }
-
-  if (transactions.length === 0) {
-    listContainer.innerHTML = `<p class="text-slate-500 text-center py-6" data-i18n="noTx">No transactions added yet.</p>`;
-    updateStats(0, 0);
-    applyTranslations();
-    return;
-  }
-
-  let totalIncome = 0;
-  let totalExpense = 0;
-  listContainer.innerHTML = '';
-
-  transactions.forEach(item => {
-    if (item.type === 'income') totalIncome += Number(item.amount);
-    else totalExpense += Number(item.amount);
-
-    const isIncome = item.type === 'income';
-    const row = document.createElement('div');
-    row.className = 'glass-card p-4 flex justify-between items-center bg-slate-900/40 hover:bg-slate-900/80 transition';
-    
-    row.innerHTML = `
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg ${isIncome ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'} flex items-center justify-center">
-          <i class="fa-solid ${isIncome ? 'fa-arrow-down' : 'fa-arrow-up'}"></i>
-        </div>
-        <div>
-          <h4 class="font-semibold text-sm">${item.title}</h4>
-          <span class="text-xs text-slate-400">${item.category} • ${item.date}</span>
-        </div>
-      </div>
-      <div class="flex items-center gap-4">
-        <span class="font-bold ${isIncome ? 'text-emerald-400' : 'text-rose-400'}">
-          ${isIncome ? '+' : '-'} ${item.amount} ${userCurrency}
-        </span>
-        <button onclick="deleteTx('${item.id}')" class="text-slate-500 hover:text-rose-400 text-xs transition">
-          <i class="fa-solid fa-trash"></i>
-        </button>
-      </div>
-    `;
-    listContainer.appendChild(row);
+// ৫. লগআউট
+const logoutBtn = getEl('logout-btn') || document.querySelector('button:contains("Logout")');
+if (logoutBtn) {
+  logoutBtn.addEventListener('click', async () => {
+    await dbClient.auth.signOut();
+    window.location.href = 'index.html';
   });
-
-  updateStats(totalIncome, totalExpense);
-}
-
-function updateStats(income, expense) {
-  document.getElementById('stat-income').innerText = `+${income.toFixed(2)} ${userCurrency}`;
-  document.getElementById('stat-expense').innerText = `-${expense.toFixed(2)} ${userCurrency}`;
-  document.getElementById('stat-balance').innerText = `${(income - expense).toFixed(2)} ${userCurrency}`;
-}
-
-async function deleteTx(id) {
-  if (confirm("Delete this transaction?")) {
-    await supabase.from('expenses').delete().eq('id', id);
-    loadTransactions();
-  }
 }
