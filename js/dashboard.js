@@ -1,17 +1,14 @@
-// Helper Function
 const getEl = (id) => document.getElementById(id);
 
 let currentUser = null;
 let userCurrency = 'SAR';
 
-// পেজ লোড হওয়ার সাথে সাথেই ডাটা ফেচ শুরু হবে
 document.addEventListener('DOMContentLoaded', async () => {
   if (!dbClient) {
     alert("Supabase connection failed!");
     return;
   }
 
-  // ১. ইউজার সেশন চেক
   const { data: { user }, error: userError } = await dbClient.auth.getUser();
 
   if (userError || !user) {
@@ -21,14 +18,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   currentUser = user;
 
-  // ২. প্রোফাইল ও কারেন্সি লোড
   await loadUserProfile();
-
-  // ৩. লেনদেনের ডাটা লোড
   await loadTransactions();
 });
 
-// প্রোফাইল তথ্য লোড করা
 async function loadUserProfile() {
   try {
     const { data, error } = await dbClient
@@ -43,11 +36,10 @@ async function loadUserProfile() {
       if (userNameEl) userNameEl.innerText = data.full_name || currentUser.email;
     }
   } catch (err) {
-    console.log('Profile load error:', err);
+    console.error('Profile load error:', err);
   }
 }
 
-// লেনদেনের ডাটা লোড ও গণনা করা
 async function loadTransactions() {
   const recentListEl = getEl('recent-transactions') || getEl('transaction-list');
   
@@ -97,7 +89,6 @@ async function loadTransactions() {
       });
     }
 
-    // কার্ড ব্যালেন্স আপডেট
     const balance = totalIncome - totalExpense;
     if (getEl('total-balance')) getEl('total-balance').innerText = `${userCurrency} ${balance.toFixed(2)}`;
     if (getEl('total-income')) getEl('total-income').innerText = `+${userCurrency} ${totalIncome.toFixed(2)}`;
@@ -109,20 +100,29 @@ async function loadTransactions() {
   }
 }
 
-// ৪. নতুন ট্রানজেকশন সেভ করা (স্মার্ট ইনপুট সিলেক্টর সহ)
 const transForm = getEl('transaction-form') || document.querySelector('form');
+
 if (transForm) {
   transForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const inputs = transForm.querySelectorAll('input');
-    const selects = transForm.querySelectorAll('select');
+    const titleEl = getEl('title') || 
+                    getEl('trans-title') || 
+                    transForm.querySelector('input[placeholder*="Salary"]') || 
+                    transForm.querySelector('input[type="text"]');
 
-    // ID বা ইনপুট পজিশন থেকে ফিল্ড সনাক্তকরণ
-    const titleEl = getEl('title') || getEl('trans-title') || getEl('transaction-title') || inputs[0];
-    const amountEl = getEl('amount') || getEl('trans-amount') || getEl('transaction-amount') || inputs[1];
-    const typeEl = getEl('type') || getEl('trans-type') || selects[0];
-    const categoryEl = getEl('category') || getEl('trans-category') || selects[1];
+    const amountEl = getEl('amount') || 
+                     getEl('trans-amount') || 
+                     transForm.querySelector('input[type="number"]') || 
+                     transForm.querySelector('input[placeholder="0.00"]');
+
+    const typeEl = getEl('type') || 
+                   getEl('trans-type') || 
+                   transForm.querySelectorAll('select')[0];
+
+    const categoryEl = getEl('category') || 
+                       getEl('trans-category') || 
+                       transForm.querySelectorAll('select')[1];
 
     const title = titleEl ? titleEl.value.trim() : '';
     const amount = amountEl ? parseFloat(amountEl.value) : 0;
@@ -130,7 +130,7 @@ if (transForm) {
     const category = categoryEl ? categoryEl.value : 'General';
 
     if (!title || !amount || isNaN(amount)) {
-      alert('Please fill in both Title and Amount properly.');
+      alert('Please fill in Title and Amount fields properly.');
       return;
     }
 
@@ -168,7 +168,6 @@ if (transForm) {
   });
 }
 
-// ৫. লগআউট
 const logoutBtn = getEl('logout-btn') || document.querySelector('button[onclick*="logout"]');
 if (logoutBtn) {
   logoutBtn.addEventListener('click', async () => {
