@@ -1,4 +1,5 @@
-const CACHE_NAME = 'spendly-v5.0';
+const CACHE_NAME = 'spendly-v6.0';
+
 const ASSETS = [
   './',
   './index.html',
