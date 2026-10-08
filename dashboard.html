@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spendly - Pro Money Tracker</title>
+  <title>Spendly - Wealth & Remittance Tracker</title>
 
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#070a12">
@@ -46,11 +46,10 @@
       <div class="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg">
         <i class="fa-solid fa-vault text-white text-xs"></i>
       </div>
-      <span class="text-lg font-black tracking-tight dark:text-white text-slate-900">Spendly</span>
+      <span class="text-lg font-black tracking-tight dark:text-white text-slate-900">Spendly Pro</span>
     </div>
 
     <div class="flex items-center gap-2">
-      <!-- Working Theme Switcher -->
       <button onclick="toggleTheme()" class="w-8 h-8 rounded-xl bg-slate-800/50 dark:bg-slate-800/50 bg-slate-200 text-indigo-400 flex items-center justify-center text-xs">
         <i id="theme-icon" class="fa-solid fa-moon"></i>
       </button>
@@ -62,55 +61,55 @@
 
   <main id="pdf-report-area" class="max-w-md mx-auto px-4 pt-4 space-y-4">
 
-    <!-- DASHBOARD TAB -->
+    <!-- 1. KSA DASHBOARD TAB -->
     <section id="tab-dashboard" class="tab-page space-y-4">
       
-      <!-- Grand Net Total -->
+      <!-- Saudi Net Balance -->
       <div class="bg-gradient-to-br from-indigo-900/60 via-slate-900 to-slate-950 border border-indigo-500/30 rounded-2xl p-5 shadow-xl text-white">
-        <span class="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Total Net Balance</span>
+        <span class="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">KSA Net Balance (SAR)</span>
         <div class="text-3xl font-black mt-1" id="total-balance">SAR 0.00</div>
         
         <div class="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-slate-800">
           <div>
-            <span class="text-[10px] text-slate-400 font-bold uppercase block">💵 Total Cash</span>
+            <span class="text-[10px] text-slate-400 font-bold uppercase block">💵 Cash</span>
             <span class="text-sm font-bold text-emerald-400" id="dash-cash-total">SAR 0.00</span>
           </div>
           <div>
-            <span class="text-[10px] text-slate-400 font-bold uppercase block">🏦 Total Bank</span>
+            <span class="text-[10px] text-slate-400 font-bold uppercase block">🏦 Saudi Banks</span>
             <span class="text-sm font-bold text-indigo-400" id="dash-bank-total">SAR 0.00</span>
           </div>
         </div>
       </div>
 
-      <!-- Bank Breakdown -->
+      <!-- Saudi Bank Accounts Grid -->
       <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-4">
-        <h3 class="text-xs font-bold dark:text-slate-400 text-slate-500 uppercase tracking-wider mb-2.5">Bank Accounts Breakdown</h3>
+        <h3 class="text-xs font-bold dark:text-slate-400 text-slate-500 uppercase tracking-wider mb-2.5">Saudi Accounts</h3>
         <div id="bank-accounts-grid" class="grid grid-cols-2 gap-2"></div>
       </div>
 
-      <!-- Income/Expense -->
+      <!-- Income & Expense Cards -->
       <div class="grid grid-cols-2 gap-3">
         <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-3.5">
-          <span class="text-[10px] font-bold text-emerald-500 uppercase">Total Income</span>
+          <span class="text-[10px] font-bold text-emerald-500 uppercase">KSA Income</span>
           <div class="text-sm font-bold text-emerald-500 mt-0.5" id="total-income">+SAR 0.00</div>
         </div>
         <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-3.5">
-          <span class="text-[10px] font-bold text-rose-500 uppercase">Total Expense</span>
+          <span class="text-[10px] font-bold text-rose-500 uppercase">KSA Expense</span>
           <div class="text-sm font-bold text-rose-500 mt-0.5" id="total-expense">-SAR 0.00</div>
         </div>
       </div>
 
-      <!-- Today's Transactions Only -->
+      <!-- Today's Transactions -->
       <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-4">
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-xs font-bold dark:text-white text-slate-900 uppercase tracking-wider">Today's Transactions</h3>
-          <span class="text-[10px] font-semibold text-indigo-400" id="today-date-badge">Today</span>
+          <span class="text-[10px] font-semibold text-indigo-400">Today</span>
         </div>
         <div id="dashboard-recent-list" class="space-y-2"></div>
       </div>
     </section>
 
-    <!-- TRANSACTIONS TAB (All Records) -->
+    <!-- 2. TRANSACTIONS TAB -->
     <section id="tab-transactions" class="tab-page hidden space-y-3">
       <div class="flex items-center justify-between">
         <h2 class="text-sm font-bold dark:text-white text-slate-900 uppercase">All Records</h2>
@@ -128,7 +127,7 @@
       <div id="all-transactions-list" class="space-y-2"></div>
     </section>
 
-    <!-- ANALYTICS TAB -->
+    <!-- 3. ANALYTICS & BUDGETS -->
     <section id="tab-analytics" class="tab-page hidden space-y-4">
       <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-4">
         <h3 class="text-xs font-bold dark:text-slate-400 text-slate-500 uppercase mb-3">Expense Distribution</h3>
@@ -137,7 +136,6 @@
         </div>
       </div>
 
-      <!-- Persistent Monthly Budget -->
       <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-4 space-y-3">
         <div class="flex items-center justify-between">
           <h3 class="text-xs font-bold dark:text-white text-slate-900 uppercase">Category Budgets</h3>
@@ -147,26 +145,49 @@
       </div>
     </section>
 
-    <!-- PROFILE TAB -->
-    <section id="tab-profile" class="tab-page hidden space-y-4">
-      <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-4 space-y-3">
-        <div class="flex items-center gap-3">
-          <div id="user-avatar" class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white text-sm">U</div>
-          <div>
-            <h4 id="profile-name-val" class="text-xs font-bold dark:text-white text-slate-900">User</h4>
-            <span id="profile-email-val" class="text-[10px] text-slate-400">user@email.com</span>
-          </div>
+    <!-- 4. BD WEALTH TAB (NEW REPLACEMENT FOR PROFILE) -->
+    <section id="tab-bdwealth" class="tab-page hidden space-y-4">
+      <!-- Total BD Wealth Card -->
+      <div class="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 border border-emerald-500/30 rounded-2xl p-5 shadow-xl text-white">
+        <span class="text-[10px] font-bold text-emerald-300 uppercase tracking-widest">Total BD Wealth (BDT)</span>
+        <div class="text-3xl font-black mt-1 text-emerald-400" id="total-bd-wealth">BDT 0.00</div>
+        
+        <div class="mt-3 pt-3 border-t border-slate-800 flex justify-between items-center text-xs">
+          <span class="text-slate-400">SAR Equivalent Value:</span>
+          <span class="font-bold text-indigo-400" id="bd-wealth-sar-equivalent">≈ SAR 0.00</span>
         </div>
+      </div>
+
+      <!-- BD Bank Accounts Breakdown Grid -->
+      <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-4">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-xs font-bold dark:text-slate-400 text-slate-500 uppercase tracking-wider">BD Bank Accounts</h3>
+          <span class="text-[10px] text-emerald-400 font-semibold">Live Tracked</span>
+        </div>
+        <div id="bd-bank-accounts-grid" class="grid grid-cols-2 gap-2"></div>
+      </div>
+
+      <!-- Quick Action for BD Accounts -->
+      <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-4 space-y-2.5">
+        <h3 class="text-xs font-bold dark:text-white text-slate-900 uppercase">BD Operations</h3>
+        <button onclick="openTransactionModal('BD_LOCAL_EXPENSE')" class="w-full py-2.5 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 text-rose-400 font-bold rounded-xl text-xs flex items-center justify-center gap-2">
+          <i class="fa-solid fa-receipt"></i>
+          <span>Record Local BD Expense (বাংলাদেশে খরচ)</span>
+        </button>
+        <button onclick="openTransactionModal('OUTWARD_EXPENSE')" class="w-full py-2.5 bg-indigo-500/10 border border-indigo-500/30 hover:bg-indigo-500/20 text-indigo-400 font-bold rounded-xl text-xs flex items-center justify-center gap-2">
+          <i class="fa-solid fa-plane-arrival"></i>
+          <span>Outward Transfer (BD ➔ KSA)</span>
+        </button>
       </div>
     </section>
 
   </main>
 
-  <!-- Bottom Nav -->
+  <!-- Bottom Navigation Bar -->
   <nav class="fixed bottom-0 left-0 right-0 z-50 bg-[#090e1a]/95 dark:bg-[#090e1a]/95 bg-white/95 backdrop-blur-xl border-t border-slate-800 dark:border-slate-800 border-slate-200 px-2 py-2 flex items-center justify-around">
     <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn flex flex-col items-center gap-1 text-indigo-400 font-semibold text-[10px]">
       <i class="fa-solid fa-house text-lg"></i>
-      <span>Dashboard</span>
+      <span>KSA Hub</span>
     </button>
     <button onclick="switchTab('transactions')" id="nav-transactions" class="nav-btn flex flex-col items-center gap-1 text-slate-400 font-semibold text-[10px]">
       <i class="fa-solid fa-list-check text-lg"></i>
@@ -179,13 +200,13 @@
       <i class="fa-solid fa-chart-pie text-lg"></i>
       <span>Analytics</span>
     </button>
-    <button onclick="switchTab('profile')" id="nav-profile" class="nav-btn flex flex-col items-center gap-1 text-slate-400 font-semibold text-[10px]">
-      <i class="fa-solid fa-user text-lg"></i>
-      <span>Profile</span>
+    <button onclick="switchTab('bdwealth')" id="nav-bdwealth" class="nav-btn flex flex-col items-center gap-1 text-slate-400 font-semibold text-[10px]">
+      <i class="fa-solid fa-building-columns text-lg"></i>
+      <span>BD Wealth</span>
     </button>
   </nav>
 
-  <!-- QUICK ADD & EDIT MODAL (WITH INTERNAL TRANSFER SUPPORT) -->
+  <!-- UNIVERSAL MODAL FOR ALL TRANSACTIONS (WITH LIVE BALANCE PREVIEW FOR ANY SELECTED ACCOUNT) -->
   <div id="trans-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full relative shadow-2xl text-white">
       <button onclick="closeTransactionModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
@@ -194,19 +215,148 @@
 
       <h3 id="modal-title-text" class="text-xs font-black uppercase tracking-wider text-indigo-400 mb-2">New Entry</h3>
 
-      <!-- Account Balance Preview -->
+      <!-- Dynamic Live Balance Display for Selected Account -->
       <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl mb-3 flex items-center justify-between text-xs">
-        <span class="text-slate-400">Available Balance:</span>
+        <span class="text-slate-400">Selected Account Balance:</span>
         <span id="modal-selected-acc-bal" class="font-bold text-emerald-400">SAR 0.00</span>
       </div>
 
       <form id="modal-trans-form" class="space-y-3">
         <input type="hidden" id="modal-trans-id" value="">
 
-        <!-- Amount Field -->
+        <!-- Transaction Type Selection -->
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Transaction Type</label>
+          <select id="modal-trans-type" onchange="handleTypeChange(this)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-white">
+            <option value="Expense">Expense</option>
+            <option value="Income">Income</option>
+            <option value="Internal Transfer">Internal Transfer (Local)</option>
+            <option value="International Transfer">International Transfer (KSA ➔ BD)</option>
+            <option value="Outward Expense">Outward Transfer (BD ➔ KSA)</option>
+            <option value="CUSTOM">+ Add Custom Type</option>
+          </select>
+        </div>
+
+        <div id="custom-type-container" class="hidden">
+          <input type="text" id="custom-type-input" placeholder="Enter custom type..." class="w-full px-3 py-2 bg-slate-950 border border-indigo-500 rounded-xl text-xs text-white">
+        </div>
+
+        <!-- Dynamic Amount Input (SAR/BDT Label changes automatically) -->
         <div class="relative">
-          <span class="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-indigo-400 text-lg">SAR</span>
+          <span id="modal-currency-label" class="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-indigo-400 text-base">SAR</span>
           <input type="number" step="0.01" id="modal-trans-amount" placeholder="0.00" required class="w-full pl-16 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-2xl font-black text-white focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <!-- STANDARD ACCOUNT SELECTOR (For Expense / Income) -->
+        <div id="standard-acc-container">
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Account</label>
+          <select id="modal-trans-payment" onchange="updateModalBalancePreview()" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+            <optgroup label="Saudi Arabia Accounts (SAR)">
+              <option value="Cash">Cash</option>
+              <option value="Al Rajhi">Al Rajhi Bank</option>
+              <option value="SNB">SNB Bank</option>
+              <option value="Barq">Barq</option>
+              <option value="Neo">Neo</option>
+              <option value="Enjaz">Enjaz</option>
+            </optgroup>
+            <optgroup label="Bangladesh Accounts (BDT)">
+              <option value="IBBL">IBBL (Islami Bank)</option>
+              <option value="MTB">MTB</option>
+              <option value="Midland">Midland Bank</option>
+              <option value="BRAC">BRAC Bank</option>
+              <option value="EBL">EBL</option>
+              <option value="Pubali">Pubali Bank</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <!-- INTERNAL TRANSFER SELECTOR -->
+        <div id="transfer-acc-container" class="hidden grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[10px] font-bold text-rose-400 uppercase mb-1">From Account</label>
+            <select id="modal-transfer-from" onchange="updateModalBalancePreview()" class="w-full px-2.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"></select>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">To Account</label>
+            <select id="modal-transfer-to" class="w-full px-2.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"></select>
+          </div>
+        </div>
+
+        <!-- INTERNATIONAL TRANSFER (KSA ➔ BD) FIELDS -->
+        <div id="remit-fields-container" class="hidden space-y-2.5 p-3 bg-slate-950/60 border border-indigo-500/30 rounded-2xl">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-rose-400 uppercase mb-1">Sender Account (KSA)</label>
+              <select id="remit-sender-acc" onchange="updateModalBalancePreview()" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+                <option value="Al Rajhi">Al Rajhi</option>
+                <option value="SNB">SNB</option>
+                <option value="Barq">Barq</option>
+                <option value="Neo">Neo</option>
+                <option value="Enjaz">Enjaz</option>
+                <option value="Cash">Cash</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">Receiver Account (BD)</label>
+              <select id="remit-receiver-acc" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+                <option value="IBBL">IBBL</option>
+                <option value="MTB">MTB</option>
+                <option value="Midland">Midland</option>
+                <option value="BRAC">BRAC</option>
+                <option value="EBL">EBL</option>
+                <option value="Pubali">Pubali</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Transfer Fee (SAR)</label>
+              <input type="number" step="0.01" id="remit-fee" value="0.00" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Exchange Rate (1 SAR = BDT)</label>
+              <input type="number" step="0.01" id="remit-exchange-rate" value="32.50" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+            </div>
+          </div>
+
+          <!-- 2.5% Government Incentive Toggle -->
+          <div class="flex items-center justify-between p-2 bg-slate-900 border border-slate-800 rounded-xl">
+            <span class="text-[11px] font-bold text-emerald-400">Add 2.5% Gov Incentive</span>
+            <input type="checkbox" id="remit-incentive-toggle" checked class="w-4 h-4 accent-indigo-600 rounded">
+          </div>
+        </div>
+
+        <!-- OUTWARD TRANSFER (BD ➔ KSA) FIELDS -->
+        <div id="outward-fields-container" class="hidden space-y-2.5 p-3 bg-slate-950/60 border border-rose-500/30 rounded-2xl">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-rose-400 uppercase mb-1">From BD Account</label>
+              <select id="outward-from-acc" onchange="updateModalBalancePreview()" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+                <option value="IBBL">IBBL</option>
+                <option value="MTB">MTB</option>
+                <option value="Midland">Midland</option>
+                <option value="BRAC">BRAC</option>
+                <option value="EBL">EBL</option>
+                <option value="Pubali">Pubali</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">To KSA Account</label>
+              <select id="outward-to-acc" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+                <option value="Cash">Cash</option>
+                <option value="Al Rajhi">Al Rajhi</option>
+                <option value="SNB">SNB</option>
+                <option value="Barq">Barq</option>
+                <option value="Neo">Neo</option>
+                <option value="Enjaz">Enjaz</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Exchange Rate (1 SAR = BDT)</label>
+            <input type="number" step="0.01" id="outward-exchange-rate" value="32.50" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+          </div>
         </div>
 
         <!-- Date & Time -->
@@ -221,78 +371,22 @@
           </div>
         </div>
 
-        <!-- Type Selection -->
-        <div>
-          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Transaction Type</label>
-          <select id="modal-trans-type" onchange="handleTypeChange(this)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-white">
-            <option value="Expense">Expense (খরচ)</option>
-            <option value="Income">Income (জমা)</option>
-            <option value="Transfer">Transfer (আভ্যন্তরীণ ফান্ড স্থানান্তরিত)</option>
-            <option value="CUSTOM">+ Add Custom Type</option>
-          </select>
-        </div>
-
-        <div id="custom-type-container" class="hidden">
-          <input type="text" id="custom-type-input" placeholder="Enter custom type..." class="w-full px-3 py-2 bg-slate-950 border border-indigo-500 rounded-xl text-xs text-white">
-        </div>
-
-        <!-- Standard Account Dropdown (For Expense/Income) -->
-        <div id="standard-acc-container">
-          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Account</label>
-          <select id="modal-trans-payment" onchange="updateModalBalancePreview()" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
-            <option value="Cash">💵 Cash</option>
-            <option value="Al Rajhi">🏦 Al Rajhi Bank</option>
-            <option value="SNB">🏦 SNB Bank</option>
-            <option value="Barq">🏦 Barq</option>
-            <option value="Neo">🏦 Neo</option>
-            <option value="Enjaz">🏦 Enjaz</option>
-            <option value="BD Bank Account">🇧🇩 BD Bank Account</option>
-          </select>
-        </div>
-
-        <!-- Internal Transfer Dropdowns (For Transfer Mode) -->
-        <div id="transfer-acc-container" class="hidden grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-[10px] font-bold text-rose-400 uppercase mb-1">From (কৌন অ্যাকাউন্ট থেকে)</label>
-            <select id="modal-transfer-from" onchange="updateModalBalancePreview()" class="w-full px-2.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
-              <option value="Cash">💵 Cash</option>
-              <option value="Al Rajhi">🏦 Al Rajhi</option>
-              <option value="SNB">🏦 SNB</option>
-              <option value="Barq">🏦 Barq</option>
-              <option value="Neo">🏦 Neo</option>
-              <option value="Enjaz">🏦 Enjaz</option>
-              <option value="BD Bank Account">🇧🇩 BD Bank</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">To (কোন অ্যাকাউন্টে)</label>
-            <select id="modal-transfer-to" class="w-full px-2.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
-              <option value="Al Rajhi">🏦 Al Rajhi</option>
-              <option value="Cash">💵 Cash</option>
-              <option value="SNB">🏦 SNB</option>
-              <option value="Barq">🏦 Barq</option>
-              <option value="Neo">🏦 Neo</option>
-              <option value="Enjaz">🏦 Enjaz</option>
-              <option value="BD Bank Account">🇧🇩 BD Bank</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Category -->
+        <!-- Category Dropdown -->
         <div id="category-container">
           <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Category</label>
           <select id="modal-trans-category" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
             <option value="General">General</option>
             <option value="Food">Food</option>
             <option value="Rent">Rent</option>
+
             <option value="Salary">Salary</option>
-            <option value="Remittance">Remittance (রেমিট্যান্স)</option>
+            <option value="Remittance">Remittance</option>
             <option value="Shopping">Shopping</option>
             <option value="Bills">Bills</option>
           </select>
         </div>
 
-        <button type="submit" class="w-full py-3 mt-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg transition">Save Entry</button>
+        <button type="submit" class="w-full py-3 mt-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg transition">Save Transaction</button>
       </form>
     </div>
   </div>
@@ -303,9 +397,9 @@
       <button onclick="closeBudgetModal()" class="absolute top-4 right-4 text-slate-400"><i class="fa-solid fa-xmark"></i></button>
       <h3 class="text-xs font-bold uppercase mb-3 text-indigo-400">Set Monthly Budgets</h3>
       <form id="budget-form" class="space-y-2">
-        <input type="number" id="budget-food" placeholder="Food Limit" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
-        <input type="number" id="budget-rent" placeholder="Rent Limit" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
-        <input type="number" id="budget-shopping" placeholder="Shopping Limit" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+        <input type="number" id="budget-food" placeholder="Food Limit (SAR)" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+        <input type="number" id="budget-rent" placeholder="Rent Limit (SAR)" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+        <input type="number" id="budget-shopping" placeholder="Shopping Limit (SAR)" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
         <button type="submit" class="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs">Save Budget</button>
       </form>
     </div>
