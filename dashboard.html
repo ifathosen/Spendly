@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spendly - Wealth & Remittance Tracker</title>
+  <title>Spendly Pro - Multi-Currency Tracker</title>
 
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#070a12">
@@ -28,16 +28,15 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body class="bg-[#070a12] dark:bg-[#070a12] dark:text-slate-100 bg-slate-50 text-slate-900 font-sans min-h-screen pb-24 relative transition-colors duration-300">
 
-  <!-- Splash Loader -->
+  <!-- Page Loader -->
   <div id="page-loader" class="fixed inset-0 z-[100] bg-[#070a12] flex flex-col items-center justify-center transition-opacity duration-500">
     <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-2xl animate-pulse mb-3">
       <i class="fa-solid fa-vault text-white text-2xl"></i>
     </div>
-    <h1 class="text-xl font-black text-white tracking-wider">SPENDLY</h1>
+    <h1 class="text-xl font-black text-white tracking-wider">SPENDLY PRO</h1>
   </div>
 
   <!-- Header -->
@@ -59,12 +58,10 @@
     </div>
   </header>
 
-  <main id="pdf-report-area" class="max-w-md mx-auto px-4 pt-4 space-y-4">
+  <main class="max-w-md mx-auto px-4 pt-4 space-y-4">
 
-    <!-- 1. KSA DASHBOARD TAB -->
+    <!-- 1. KSA HUB DASHBOARD -->
     <section id="tab-dashboard" class="tab-page space-y-4">
-      
-      <!-- Saudi Net Balance -->
       <div class="bg-gradient-to-br from-indigo-900/60 via-slate-900 to-slate-950 border border-indigo-500/30 rounded-2xl p-5 shadow-xl text-white">
         <span class="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">KSA Net Balance (SAR)</span>
         <div class="text-3xl font-black mt-1" id="total-balance">SAR 0.00</div>
@@ -81,13 +78,11 @@
         </div>
       </div>
 
-      <!-- Saudi Bank Accounts Grid -->
       <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-4">
         <h3 class="text-xs font-bold dark:text-slate-400 text-slate-500 uppercase tracking-wider mb-2.5">Saudi Accounts</h3>
         <div id="bank-accounts-grid" class="grid grid-cols-2 gap-2"></div>
       </div>
 
-      <!-- Income & Expense Cards -->
       <div class="grid grid-cols-2 gap-3">
         <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-3.5">
           <span class="text-[10px] font-bold text-emerald-500 uppercase">KSA Income</span>
@@ -99,7 +94,6 @@
         </div>
       </div>
 
-      <!-- Today's Transactions -->
       <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-4">
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-xs font-bold dark:text-white text-slate-900 uppercase tracking-wider">Today's Transactions</h3>
@@ -109,15 +103,32 @@
       </div>
     </section>
 
-    <!-- 2. TRANSACTIONS TAB -->
+    <!-- 2. TRANSACTIONS TAB (FILTER BY SAR / BDT & SEARCH) -->
     <section id="tab-transactions" class="tab-page hidden space-y-3">
       <div class="flex items-center justify-between">
-        <h2 class="text-sm font-bold dark:text-white text-slate-900 uppercase">All Records</h2>
+        <h2 class="text-sm font-bold dark:text-white text-slate-900 uppercase">Records History</h2>
         <span id="trans-count-badge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400">0 Items</span>
       </div>
 
       <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-3 space-y-2">
-        <input type="text" id="search-input" placeholder="Search record..." class="w-full px-3 py-1.5 bg-slate-950 dark:bg-slate-950 bg-slate-100 border border-slate-800 dark:border-slate-800 border-slate-300 rounded-xl text-xs dark:text-white text-slate-900">
+        <input type="text" id="search-input" placeholder="Search title, category, bank..." class="w-full px-3 py-1.5 bg-slate-950 dark:bg-slate-950 bg-slate-100 border border-slate-800 dark:border-slate-800 border-slate-300 rounded-xl text-xs dark:text-white text-slate-900">
+        
+        <div class="grid grid-cols-2 gap-2">
+          <!-- Currency Specific Filter -->
+          <select id="currency-filter" onchange="window.applyFiltersAndRender()" class="px-2 py-1.5 bg-slate-950 dark:bg-slate-950 bg-slate-100 border border-slate-800 dark:border-slate-800 border-slate-300 rounded-xl text-xs font-bold dark:text-white text-slate-900">
+            <option value="ALL">🌐 All Currencies</option>
+            <option value="SAR">🇸🇦 SAR (Saudi Only)</option>
+            <option value="BDT">🇧🇩 BDT (BD Only)</option>
+          </select>
+
+          <!-- Sorting Option -->
+          <select id="sort-by-select" onchange="window.applyFiltersAndRender()" class="px-2 py-1.5 bg-slate-950 dark:bg-slate-950 bg-slate-100 border border-slate-800 dark:border-slate-800 border-slate-300 rounded-xl text-xs font-bold dark:text-white text-slate-900">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="highest">Highest Amount</option>
+          </select>
+        </div>
+
         <div class="grid grid-cols-2 gap-2">
           <input type="date" id="filter-from-date" class="px-2 py-1 bg-slate-950 dark:bg-slate-950 bg-slate-100 border border-slate-800 dark:border-slate-800 border-slate-300 rounded-lg text-[11px] dark:text-white text-slate-900">
           <input type="date" id="filter-to-date" class="px-2 py-1 bg-slate-950 dark:bg-slate-950 bg-slate-100 border border-slate-800 dark:border-slate-800 border-slate-300 rounded-lg text-[11px] dark:text-white text-slate-900">
@@ -127,7 +138,7 @@
       <div id="all-transactions-list" class="space-y-2"></div>
     </section>
 
-    <!-- 3. ANALYTICS & BUDGETS -->
+    <!-- 3. ANALYTICS TAB -->
     <section id="tab-analytics" class="tab-page hidden space-y-4">
       <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-4">
         <h3 class="text-xs font-bold dark:text-slate-400 text-slate-500 uppercase mb-3">Expense Distribution</h3>
@@ -145,20 +156,25 @@
       </div>
     </section>
 
-    <!-- 4. BD WEALTH TAB (NEW REPLACEMENT FOR PROFILE) -->
+    <!-- 4. BD WEALTH TAB (WITH CUSTOM CONVERSION RATE INPUT FIELD) -->
     <section id="tab-bdwealth" class="tab-page hidden space-y-4">
-      <!-- Total BD Wealth Card -->
       <div class="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 border border-emerald-500/30 rounded-2xl p-5 shadow-xl text-white">
         <span class="text-[10px] font-bold text-emerald-300 uppercase tracking-widest">Total BD Wealth (BDT)</span>
         <div class="text-3xl font-black mt-1 text-emerald-400" id="total-bd-wealth">BDT 0.00</div>
         
-        <div class="mt-3 pt-3 border-t border-slate-800 flex justify-between items-center text-xs">
-          <span class="text-slate-400">SAR Equivalent Value:</span>
-          <span class="font-bold text-indigo-400" id="bd-wealth-sar-equivalent">≈ SAR 0.00</span>
+        <!-- CUSTOM EXCHANGE RATE FIELD & SAR EQUIVALENT DISPLAY -->
+        <div class="mt-4 pt-3 border-t border-slate-800 space-y-2">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400 font-semibold">Custom Rate (1 SAR = ? BDT):</span>
+            <input type="number" step="0.01" id="bd-custom-rate-input" placeholder="0" oninput="updateBdWealthSarEquivalent()" class="w-24 px-2 py-1 bg-slate-900 border border-slate-700 rounded-lg text-right text-xs text-emerald-400 font-bold focus:outline-none focus:border-emerald-500">
+          </div>
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400">SAR Equivalent Value:</span>
+            <span class="font-bold text-indigo-400 text-sm" id="bd-wealth-sar-equivalent">SAR 0.00</span>
+          </div>
         </div>
       </div>
 
-      <!-- BD Bank Accounts Breakdown Grid -->
       <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-4">
         <div class="flex justify-between items-center mb-3">
           <h3 class="text-xs font-bold dark:text-slate-400 text-slate-500 uppercase tracking-wider">BD Bank Accounts</h3>
@@ -167,7 +183,6 @@
         <div id="bd-bank-accounts-grid" class="grid grid-cols-2 gap-2"></div>
       </div>
 
-      <!-- Quick Action for BD Accounts -->
       <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-4 space-y-2.5">
         <h3 class="text-xs font-bold dark:text-white text-slate-900 uppercase">BD Operations</h3>
         <button onclick="openTransactionModal('BD_LOCAL_EXPENSE')" class="w-full py-2.5 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 text-rose-400 font-bold rounded-xl text-xs flex items-center justify-center gap-2">
@@ -183,7 +198,7 @@
 
   </main>
 
-  <!-- Bottom Navigation Bar -->
+  <!-- Bottom Nav -->
   <nav class="fixed bottom-0 left-0 right-0 z-50 bg-[#090e1a]/95 dark:bg-[#090e1a]/95 bg-white/95 backdrop-blur-xl border-t border-slate-800 dark:border-slate-800 border-slate-200 px-2 py-2 flex items-center justify-around">
     <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn flex flex-col items-center gap-1 text-indigo-400 font-semibold text-[10px]">
       <i class="fa-solid fa-house text-lg"></i>
@@ -206,7 +221,7 @@
     </button>
   </nav>
 
-  <!-- UNIVERSAL MODAL FOR ALL TRANSACTIONS (WITH LIVE BALANCE PREVIEW FOR ANY SELECTED ACCOUNT) -->
+  <!-- UNIVERSAL TRANSACTION MODAL (WITH BALANCE GUARD & FEES) -->
   <div id="trans-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full relative shadow-2xl text-white">
       <button onclick="closeTransactionModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
@@ -215,9 +230,9 @@
 
       <h3 id="modal-title-text" class="text-xs font-black uppercase tracking-wider text-indigo-400 mb-2">New Entry</h3>
 
-      <!-- Dynamic Live Balance Display for Selected Account -->
+      <!-- Selected Account Balance Preview Box -->
       <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl mb-3 flex items-center justify-between text-xs">
-        <span class="text-slate-400">Selected Account Balance:</span>
+        <span class="text-slate-400">Available Balance:</span>
         <span id="modal-selected-acc-bal" class="font-bold text-emerald-400">SAR 0.00</span>
       </div>
 
@@ -241,13 +256,13 @@
           <input type="text" id="custom-type-input" placeholder="Enter custom type..." class="w-full px-3 py-2 bg-slate-950 border border-indigo-500 rounded-xl text-xs text-white">
         </div>
 
-        <!-- Dynamic Amount Input (SAR/BDT Label changes automatically) -->
+        <!-- Amount Input -->
         <div class="relative">
           <span id="modal-currency-label" class="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-indigo-400 text-base">SAR</span>
           <input type="number" step="0.01" id="modal-trans-amount" placeholder="0.00" required class="w-full pl-16 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-2xl font-black text-white focus:outline-none focus:border-indigo-500">
         </div>
 
-        <!-- STANDARD ACCOUNT SELECTOR (For Expense / Income) -->
+        <!-- STANDARD ACCOUNT SELECTOR -->
         <div id="standard-acc-container">
           <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Account</label>
           <select id="modal-trans-payment" onchange="updateModalBalancePreview()" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
@@ -270,15 +285,21 @@
           </select>
         </div>
 
-        <!-- INTERNAL TRANSFER SELECTOR -->
-        <div id="transfer-acc-container" class="hidden grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-[10px] font-bold text-rose-400 uppercase mb-1">From Account</label>
-            <select id="modal-transfer-from" onchange="updateModalBalancePreview()" class="w-full px-2.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"></select>
+        <!-- INTERNAL LOCAL TRANSFER SELECTOR WITH FEE -->
+        <div id="transfer-acc-container" class="hidden space-y-2">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-rose-400 uppercase mb-1">From Account</label>
+              <select id="modal-transfer-from" onchange="updateModalBalancePreview()" class="w-full px-2.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"></select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">To Account</label>
+              <select id="modal-transfer-to" class="w-full px-2.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"></select>
+            </div>
           </div>
           <div>
-            <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">To Account</label>
-            <select id="modal-transfer-to" class="w-full px-2.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"></select>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Transfer Fee (Charge)</label>
+            <input type="number" step="0.01" id="internal-transfer-fee" value="0.00" class="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
           </div>
         </div>
 
@@ -311,18 +332,17 @@
 
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Transfer Fee (SAR)</label>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Bank Fee (SAR)</label>
               <input type="number" step="0.01" id="remit-fee" value="0.00" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
             </div>
             <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Exchange Rate (1 SAR = BDT)</label>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Rate (1 SAR = BDT)</label>
               <input type="number" step="0.01" id="remit-exchange-rate" value="32.50" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
             </div>
           </div>
 
-          <!-- 2.5% Government Incentive Toggle -->
           <div class="flex items-center justify-between p-2 bg-slate-900 border border-slate-800 rounded-xl">
-            <span class="text-[11px] font-bold text-emerald-400">Add 2.5% Gov Incentive</span>
+            <span class="text-[11px] font-bold text-emerald-400">2.5% Gov Incentive</span>
             <input type="checkbox" id="remit-incentive-toggle" checked class="w-4 h-4 accent-indigo-600 rounded">
           </div>
         </div>
@@ -353,9 +373,15 @@
               </select>
             </div>
           </div>
-          <div>
-            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Exchange Rate (1 SAR = BDT)</label>
-            <input type="number" step="0.01" id="outward-exchange-rate" value="32.50" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Transfer Fee (BDT)</label>
+              <input type="number" step="0.01" id="outward-fee" value="0.00" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Rate (1 SAR = BDT)</label>
+              <input type="number" step="0.01" id="outward-exchange-rate" value="32.50" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+            </div>
           </div>
         </div>
 
@@ -378,7 +404,6 @@
             <option value="General">General</option>
             <option value="Food">Food</option>
             <option value="Rent">Rent</option>
-
             <option value="Salary">Salary</option>
             <option value="Remittance">Remittance</option>
             <option value="Shopping">Shopping</option>
