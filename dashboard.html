@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spendly - App Dashboard</title>
+  <title>Spendly - Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,13 +18,13 @@
 </head>
 <body class="bg-[#070a12] text-slate-100 font-sans min-h-screen pb-24 relative">
 
-  <!-- Page Transition Loader -->
+  <!-- Page Loader -->
   <div id="page-loader" class="fixed inset-0 z-[100] bg-[#070a12] flex flex-col items-center justify-center transition-opacity duration-500">
     <div class="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
     <span class="text-sm font-semibold tracking-wider text-slate-400">Loading Dashboard...</span>
   </div>
 
-  <!-- Top App Header -->
+  <!-- Header -->
   <header class="sticky top-0 z-40 bg-[#070a12]/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3.5 flex items-center justify-between">
     <div class="flex items-center gap-2.5">
       <div class="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/30">
@@ -34,12 +34,10 @@
     </div>
 
     <div class="flex items-center gap-3">
-      <!-- Language Switcher -->
       <button onclick="toggleLanguage()" class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[11px] font-semibold text-slate-300">
         <span id="lang-toggle-text">বাংলা</span>
       </button>
 
-      <!-- Logout -->
       <button id="logout-btn" class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 flex items-center justify-center text-xs">
         <i class="fa-solid fa-arrow-right-from-bracket"></i>
       </button>
@@ -49,7 +47,7 @@
   <!-- Main Content Workspace -->
   <main class="max-w-md mx-auto px-4 pt-6">
 
-    <!-- 1. Dashboard Tab -->
+    <!-- 1. DASHBOARD TAB -->
     <section id="tab-dashboard" class="tab-page space-y-6">
       <div class="bg-gradient-to-br from-indigo-900/40 via-slate-900 to-slate-900 border border-indigo-500/30 rounded-2xl p-5 shadow-xl">
         <span class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider" data-i18n="totalBalance">Total Balance</span>
@@ -69,73 +67,155 @@
       </div>
 
       <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4">
-        <h3 class="text-sm font-bold text-white mb-3" data-i18n="recentTransactions">Recent Transactions</h3>
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-bold text-white">Recent Transactions</h3>
+          <span class="text-[10px] font-medium text-slate-500">Last 10 Items</span>
+        </div>
         <div id="dashboard-recent-list" class="space-y-2.5">
           <!-- Populated by JS -->
         </div>
       </div>
     </section>
 
-    <!-- 2. Transactions Tab -->
+    <!-- 2. TRANSACTIONS TAB -->
     <section id="tab-transactions" class="tab-page hidden space-y-4">
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-bold text-white" data-i18n="menuTransactions">Transactions</h2>
         <span id="trans-count-badge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">0 Items</span>
       </div>
 
-      <input type="text" id="search-input" placeholder="Search transactions..." data-i18n="searchPlaceholder" class="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500">
+      <!-- Search & Sort Controls -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-3">
+        <input type="text" id="search-input" placeholder="Search transactions..." class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500">
+
+        <!-- Date Range Filter -->
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[10px] text-slate-400 mb-1">From Date</label>
+            <input type="date" id="filter-from-date" class="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-[11px] text-white">
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-400 mb-1">To Date</label>
+            <input type="date" id="filter-to-date" class="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-[11px] text-white">
+          </div>
+        </div>
+
+        <!-- Sort By Dropdown -->
+        <div class="flex items-center justify-between pt-1">
+          <label class="text-xs text-slate-400 font-medium">Sort By:</label>
+          <select id="sort-by-select" class="px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="high-amount">Amount: High to Low</option>
+            <option value="low-amount">Amount: Low to High</option>
+          </select>
+        </div>
+      </div>
       
       <div id="all-transactions-list" class="space-y-2.5">
         <!-- Populated by JS -->
       </div>
     </section>
 
-    <!-- 3. Analytics Tab -->
+    <!-- 3. ANALYTICS & BUDGET TAB -->
     <section id="tab-analytics" class="tab-page hidden space-y-4">
-      <h2 class="text-lg font-bold text-white" data-i18n="menuAnalytics">Analytics</h2>
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold text-white">Analytics & Budget</h2>
+        <button onclick="openBudgetModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow transition">
+          <i class="fa-solid fa-sliders mr-1"></i> Set Budget
+        </button>
+      </div>
       
-      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
-        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Expense Breakdown by Category</h3>
+      <!-- Budget Progress Section -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <h3 class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Monthly Category Budgets</h3>
+        <div id="budget-tracker-list" class="space-y-3">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Expense Category Breakdown -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Expense Breakdown Percentage</h3>
         <div id="analytics-category-list" class="space-y-3">
           <!-- Populated by JS -->
         </div>
       </div>
     </section>
 
-    <!-- 4. Profile Tab -->
+    <!-- 4. PROFILE TAB -->
     <section id="tab-profile" class="tab-page hidden space-y-4">
       <h2 class="text-lg font-bold text-white" data-i18n="menuProfile">Profile</h2>
       
-      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
-        <div class="flex items-center gap-3.5 pb-4 border-b border-slate-800">
-          <div id="user-avatar" class="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center font-extrabold text-white text-lg shadow-lg">U</div>
+      <!-- Profile Card -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <div class="flex items-center gap-3 pb-3 border-b border-slate-800">
+          <div id="user-avatar" class="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white text-lg">U</div>
           <div>
-            <h4 id="profile-name-val" class="text-base font-bold text-white">User</h4>
+            <h4 id="profile-name-val" class="text-sm font-bold text-white">User</h4>
             <span id="profile-email-val" class="text-xs text-slate-400">user@email.com</span>
           </div>
         </div>
 
-        <div class="space-y-3 pt-1">
-          <div class="flex justify-between items-center text-xs">
-            <span class="text-slate-400">Total Transactions Recorded</span>
+        <div class="space-y-2 text-xs">
+          <div class="flex justify-between text-slate-400">
+            <span>Total Transactions:</span>
             <span id="profile-trans-count" class="font-bold text-indigo-400">0</span>
           </div>
-          <div class="flex justify-between items-center text-xs">
-            <span class="text-slate-400">Currency</span>
-            <span id="profile-currency-val" class="font-bold text-white">SAR ﷼</span>
-          </div>
+        </div>
+      </div>
+
+      <!-- Settings Section -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider"><i class="fa-solid fa-gear text-indigo-400 mr-1.5"></i> Settings</h3>
+        
+        <div class="flex items-center justify-between text-xs pt-1">
+          <span class="text-slate-400">Preferred Currency</span>
+          <select id="currency-select" class="px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-lg text-white">
+            <option value="SAR ﷼">SAR (﷼)</option>
+            <option value="BDT ৳">BDT (৳)</option>
+            <option value="USD $">USD ($)</option>
+          </select>
         </div>
 
-        <button onclick="logoutUser()" class="w-full py-2.5 mt-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-semibold text-xs rounded-xl border border-rose-500/20 transition flex items-center justify-center gap-2">
-          <i class="fa-solid fa-arrow-right-from-bracket"></i>
-          <span>Logout Account</span>
+        <button onclick="exportTransactionsCSV()" class="w-full py-2 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 font-semibold text-xs rounded-xl transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-file-csv text-emerald-400"></i>
+          <span>Export Data to CSV</span>
         </button>
+      </div>
+
+      <!-- FAQ / QNA Section -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider"><i class="fa-solid fa-circle-question text-indigo-400 mr-1.5"></i> Frequently Asked Questions (QNA)</h3>
+        
+        <div class="space-y-2 text-xs">
+          <details class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 cursor-pointer">
+            <summary class="font-semibold text-white">How to record a backdated transaction?</summary>
+            <p class="text-slate-400 mt-1.5 leading-relaxed">Click the middle (+) button, choose your transaction type, and select any past date from the Date Picker field.</p>
+          </details>
+
+          <details class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 cursor-pointer">
+            <summary class="font-semibold text-white">Is my financial data secure?</summary>
+            <p class="text-slate-400 mt-1.5 leading-relaxed">Yes! All data is encrypted and securely saved in your personal Supabase cloud database instance.</p>
+          </details>
+        </div>
+      </div>
+
+      <!-- Help & Support Section -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider"><i class="fa-solid fa-headset text-indigo-400 mr-1.5"></i> Help & Support</h3>
+        <p class="text-xs text-slate-400">Have an issue or suggestion? Drop us a quick message below:</p>
+        
+        <form id="support-form" class="space-y-2">
+          <textarea id="support-msg" placeholder="Describe your issue..." required class="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white h-20 focus:outline-none focus:border-indigo-500"></textarea>
+          <button type="submit" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl transition">Send Message</button>
+        </form>
       </div>
     </section>
 
   </main>
 
-  <!-- Bottom App Navigation Bar -->
+  <!-- Bottom Navigation Bar -->
   <nav class="fixed bottom-0 left-0 right-0 z-50 bg-[#090e1a]/95 backdrop-blur-xl border-t border-slate-800/80 px-2 py-2 flex items-center justify-around">
     
     <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn flex flex-col items-center gap-1 text-indigo-400 font-semibold text-[10px]">
@@ -148,7 +228,7 @@
       <span data-i18n="menuTransactions">Transactions</span>
     </button>
 
-    <!-- Quick Add Floating Button -->
+    <!-- Floating (+) Quick Add -->
     <button onclick="openTransactionModal()" class="-mt-6 w-12 h-12 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-xl shadow-indigo-600/40 border-2 border-[#070a12] active:scale-95 transition">
       <i class="fa-solid fa-plus text-xl"></i>
     </button>
@@ -187,6 +267,11 @@
           <input type="number" step="0.01" id="modal-trans-amount" required class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500">
         </div>
 
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Date</label>
+          <input type="date" id="modal-trans-date" required class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500">
+        </div>
+
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1" data-i18n="typeLabel">Type</label>
@@ -199,6 +284,7 @@
             <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1" data-i18n="categoryLabel">Category</label>
             <select id="modal-trans-category" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
               <option value="Food">Food</option>
+              <option value="Rent">Rent / Housing</option>
               <option value="Salary">Salary</option>
               <option value="Shopping">Shopping</option>
               <option value="Bills">Bills</option>
@@ -208,6 +294,38 @@
         </div>
 
         <button type="submit" id="modal-submit-btn" class="w-full py-2.5 mt-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg transition" data-i18n="saveTransaction">Save Transaction</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Budget Modal Popup -->
+  <div id="budget-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full relative shadow-2xl">
+      <button onclick="closeBudgetModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-base">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <h3 class="text-base font-bold text-white mb-4">Set Monthly Budget</h3>
+
+      <form id="budget-form" class="space-y-3">
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Food Budget</label>
+          <input type="number" id="budget-food" placeholder="0.00" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Rent / Housing Budget</label>
+          <input type="number" id="budget-rent" placeholder="0.00" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Shopping Budget</label>
+          <input type="number" id="budget-shopping" placeholder="0.00" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Bills Budget</label>
+          <input type="number" id="budget-bills" placeholder="0.00" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+        </div>
+
+        <button type="submit" class="w-full py-2.5 mt-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg transition">Save Budgets</button>
       </form>
     </div>
   </div>
