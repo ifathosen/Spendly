@@ -10,28 +10,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   checkPinLock();
   bindEvents();
 
-  // Internet Restoration Event for Auto-Sync
   window.addEventListener('online', syncOfflineQueue);
 
   try {
     if (typeof dbClient !== 'undefined' && dbClient) {
       if (navigator.onLine) {
-        const { data: { user }, error } = await dbClient.auth.getUser();
+        const { data: { user } } = await dbClient.auth.getUser();
         if (user) {
           currentUser = user;
           localStorage.setItem('spendly_last_user', JSON.stringify(user));
         }
-      } else {
-        const savedUser = localStorage.getItem('spendly_last_user');
-        if (savedUser) currentUser = JSON.parse(savedUser);
       }
-    } else {
+    }
+    
+    if (!currentUser) {
       const savedUser = localStorage.getItem('spendly_last_user');
       if (savedUser) currentUser = JSON.parse(savedUser);
     }
 
     if (!currentUser) {
-      // Fallback guest session for offline or dev use
       currentUser = { id: 'local_user', email: 'user@spendly.local' };
     }
 
@@ -43,22 +40,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const savedTab = localStorage.getItem('spendly_active_tab') || 'dashboard';
     window.switchTab(savedTab);
   } catch (err) {
-    console.error("Initialization Error:", err);
+    console.error("Init Error:", err);
   }
 });
 
-// Security PIN Check
 function checkPinLock() {
   const pin = localStorage.getItem('spendly_app_pin');
-  if (pin) {
-    document.getElementById('pin-screen')?.classList.remove('hidden');
-  }
+  if (pin) document.getElementById('pin-screen')?.classList.remove('hidden');
 }
 
 window.verifyPin = function() {
   const enteredPin = document.getElementById('pin-input').value;
-  const savedPin = localStorage.getItem('spendly_app_pin');
-  if (enteredPin === savedPin) {
+  if (enteredPin === localStorage.getItem('spendly_app_pin')) {
     document.getElementById('pin-screen').classList.add('hidden');
   } else {
     alert("Incorrect PIN Code!");
@@ -76,9 +69,9 @@ window.togglePinLockSetting = function() {
     const newPin = prompt("Enter 4-Digit Security PIN:");
     if (newPin && newPin.length === 4) {
       localStorage.setItem('spendly_app_pin', newPin);
-      alert("PIN Lock Enabled!");
+      alert("PIN Enabled!");
     } else {
-      alert("Invalid PIN. Enter exactly 4 digits.");
+      alert("Enter exactly 4 digits.");
     }
   }
 };
@@ -86,70 +79,42 @@ window.togglePinLockSetting = function() {
 async function loadUserProfile() {
   try {
     if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
-      const { data } = await dbClient
-        .from('profiles')
-        .select('full_name, currency')
-        .eq('id', currentUser.id)
-        .maybeSingle();
-
+      const { data } = await dbClient.from('profiles').select('full_name, currency').eq('id', currentUser.id).maybeSingle();
       if (data && data.currency) userCurrency = data.currency;
       if (data) localStorage.setItem(`spendly_profile_${currentUser.id}`, JSON.stringify(data));
-    } else {
-      const cachedProf = localStorage.getItem(`spendly_profile_${currentUser ? currentUser.id : ''}`);
-      if (cachedProf) {
-        const p = JSON.parse(cachedProf);
-        if (p.currency) userCurrency = p.currency;
-      }
     }
-
-    const name = (currentUser && currentUser.user_metadata && currentUser.user_metadata.full_name) 
-      ? currentUser.user_metadata.full_name 
-      : (currentUser && currentUser.email ? currentUser.email.split('@')[0] : 'User');
-
-    const avatarEl = document.getElementById('user-avatar');
-    const nameEl = document.getElementById('profile-name-val');
-    const emailEl = document.getElementById('profile-email-val');
-    const currSelect = document.getElementById('currency-select');
-
-    if (avatarEl) avatarEl.innerText = name.charAt(0).toUpperCase();
-    if (nameEl) nameEl.innerText = name;
-    if (emailEl) emailEl.innerText = currentUser ? currentUser.email : '';
-    if (currSelect) currSelect.value = userCurrency;
-  } catch (err) {
-    console.error(err);
+  } catch (e) {
+    console.error(e);
   }
+
+  const name = (currentUser && currentUser.email) ? currentUser.email.split('@')[0] : 'User';
+  if (document.getElementById('user-avatar')) document.getElementById('user-avatar').innerText = name.charAt(0).toUpperCase();
+  if (document.getElementById('profile-name-val')) document.getElementById('profile-name-val').innerText = name;
+  if (document.getElementById('profile-email-val')) document.getElementById('profile-email-val').innerText = currentUser?.email || '';
+  if (document.getElementById('currency-select')) document.getElementById('currency-select').value = userCurrency;
 }
 
 async function loadTransactions() {
-  if (navigator.onLine) {
-    await syncOfflineQueue();
-  }
+  if (navigator.onLine) await syncOfflineQueue();
 
-  let fetchedFromCloud = false;
-
+  let cloudData = [];
   try {
     if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
-      const { data, error } = await dbClient
-        .from('transactions')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false });
-
+      const { data, error } = await dbClient.from('transactions').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
       if (!error && data) {
-        allTransactions = data;
+        cloudData = data;
         localStorage.setItem(`spendly_cached_trans_${currentUser.id}`, JSON.stringify(data));
-        fetchedFromCloud = true;
       }
     }
-  } catch (err) {
-    console.error("Fetch Error:", err);
+  } catch (e) {
+    console.error(e);
   }
 
-  if (!fetchedFromCloud) {
+  if (cloudData.length === 0) {
     const cached = localStorage.getItem(`spendly_cached_trans_${currentUser ? currentUser.id : 'local_user'}`);
-    if (cached) {
-      allTransactions = JSON.parse(cached);
-    }
+    allTransactions = cached ? JSON.parse(cached) : [];
+  } else {
+    allTransactions = cloudData;
   }
 
   renderDashboardList(allTransactions);
@@ -160,13 +125,10 @@ async function loadTransactions() {
   renderDebtLoan();
   updateMetrics(allTransactions);
 
-  const badge = document.getElementById('trans-count-badge');
-  const profileCount = document.getElementById('profile-trans-count');
-  if (badge) badge.innerText = `${allTransactions.length} Items`;
-  if (profileCount) profileCount.innerText = allTransactions.length;
+  if (document.getElementById('trans-count-badge')) document.getElementById('trans-count-badge').innerText = `${allTransactions.length} Items`;
+  if (document.getElementById('profile-trans-count')) document.getElementById('profile-trans-count').innerText = allTransactions.length;
 }
 
-// Auto Sync Offline Queue
 async function syncOfflineQueue() {
   if (!navigator.onLine || typeof dbClient === 'undefined' || !dbClient || !currentUser || currentUser.id === 'local_user') return;
   const key = `spendly_offline_queue_${currentUser.id}`;
@@ -178,16 +140,13 @@ async function syncOfflineQueue() {
       if (item.action === 'insert') {
         const { id, ...payload } = item.payload;
         await dbClient.from('transactions').insert([{ ...payload, user_id: currentUser.id }]);
-      } else if (item.action === 'update') {
-        await dbClient.from('transactions').update(item.payload).eq('id', item.id);
       } else if (item.action === 'delete') {
         await dbClient.from('transactions').delete().eq('id', item.id);
       }
-    } catch (err) {
-      console.error("Queue Sync Error:", err);
+    } catch (e) {
+      console.error("Sync error:", e);
     }
   }
-
   localStorage.removeItem(key);
 }
 
@@ -201,10 +160,6 @@ function addToOfflineQueue(action, payload, id = null) {
     const newRecord = { ...payload, id: tempId };
     allTransactions.unshift(newRecord);
     queue.push({ action, payload: newRecord });
-  } else if (action === 'update') {
-    const idx = allTransactions.findIndex(t => t.id == id);
-    if (idx !== -1) allTransactions[idx] = { ...allTransactions[idx], ...payload };
-    queue.push({ action, payload, id });
   } else if (action === 'delete') {
     allTransactions = allTransactions.filter(t => t.id != id);
     queue.push({ action, id });
@@ -217,13 +172,11 @@ function addToOfflineQueue(action, payload, id = null) {
 function renderDashboardList(transactions) {
   const container = document.getElementById('dashboard-recent-list');
   if (!container) return;
-
   const recent = transactions.slice(0, 10);
-  if (recent.length === 0) {
+  if (!recent.length) {
     container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">No transactions recorded yet.</p>`;
     return;
   }
-
   container.innerHTML = recent.map(t => createItemHTML(t)).join('');
 }
 
@@ -240,7 +193,6 @@ window.applyFiltersAndRender = function() {
   if (searchQ) {
     filtered = filtered.filter(t => (t.title && t.title.toLowerCase().includes(searchQ)) || (t.category && t.category.toLowerCase().includes(searchQ)));
   }
-
   if (fromDate) filtered = filtered.filter(t => (t.created_at ? t.created_at.split('T')[0] : '') >= fromDate);
   if (toDate) filtered = filtered.filter(t => (t.created_at ? t.created_at.split('T')[0] : '') <= toDate);
 
@@ -249,11 +201,10 @@ window.applyFiltersAndRender = function() {
   else if (sortBy === 'high-amount') filtered.sort((a, b) => (parseFloat(b.amount) || 0) - (parseFloat(a.amount) || 0));
   else if (sortBy === 'low-amount') filtered.sort((a, b) => (parseFloat(a.amount) || 0) - (parseFloat(b.amount) || 0));
 
-  if (filtered.length === 0) {
+  if (!filtered.length) {
     container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">No matching transactions found.</p>`;
     return;
   }
-
   container.innerHTML = filtered.map(t => createItemHTML(t)).join('');
 };
 
@@ -261,8 +212,7 @@ function createItemHTML(t) {
   const isIncome = t.type === 'Income';
   const amt = parseFloat(t.amount) || 0;
   const formattedDate = t.created_at ? new Date(t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-  const payMethod = t.payment_method ? ` • ${t.payment_method}` : '';
-
+  
   return `
     <div class="flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-xl">
       <div class="flex items-center gap-2.5">
@@ -271,14 +221,13 @@ function createItemHTML(t) {
         </div>
         <div>
           <h4 class="text-xs font-bold text-white">${t.title}</h4>
-          <span class="text-[10px] text-slate-500">${t.category || 'General'}${payMethod} • ${formattedDate}</span>
+          <span class="text-[10px] text-slate-500">${t.category || 'General'} • ${formattedDate}</span>
         </div>
       </div>
       <div class="flex items-center gap-3">
         <span class="text-xs font-bold ${isIncome ? 'text-emerald-400' : 'text-rose-400'}">
           ${isIncome ? '+' : '-'}${userCurrency} ${amt.toFixed(2)}
         </span>
-        <button onclick="editTransaction('${t.id}')" class="text-slate-500 hover:text-indigo-400 text-xs"><i class="fa-solid fa-pen"></i></button>
         <button onclick="deleteTransaction('${t.id}')" class="text-slate-500 hover:text-rose-400 text-xs"><i class="fa-solid fa-trash"></i></button>
       </div>
     </div>
@@ -288,70 +237,50 @@ function createItemHTML(t) {
 function renderAnalyticsChart(transactions) {
   const ctx = document.getElementById('expenseChart')?.getContext('2d');
   if (!ctx) return;
-
   const expenses = transactions.filter(t => t.type === 'Expense');
   const catTotals = {};
-
   expenses.forEach(t => {
     const amt = parseFloat(t.amount) || 0;
     const cat = t.category || 'General';
     catTotals[cat] = (catTotals[cat] || 0) + amt;
   });
 
-  const labels = Object.keys(catTotals);
-  const data = Object.values(catTotals);
-
   if (chartInstance) chartInstance.destroy();
-
   chartInstance = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: labels.length ? labels : ['No Data'],
-      datasets: [{
-        data: data.length ? data : [1],
-        backgroundColor: ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6', '#64748b']
-      }]
+      labels: Object.keys(catTotals).length ? Object.keys(catTotals) : ['No Data'],
+      datasets: [{ data: Object.values(catTotals).length ? Object.values(catTotals) : [1], backgroundColor: ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6'] }]
     },
-    options: {
-      plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } }
-    }
+    options: { plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } } }
   });
 }
 
 function renderBudgets(transactions) {
   const container = document.getElementById('budget-tracker-list');
   if (!container) return;
-
   const expenses = transactions.filter(t => t.type === 'Expense');
   const spentByCat = {};
-
   expenses.forEach(t => {
-    const amt = parseFloat(t.amount) || 0;
-    const cat = t.category || 'General';
-    spentByCat[cat] = (spentByCat[cat] || 0) + amt;
+    spentByCat[t.category || 'General'] = (spentByCat[t.category || 'General'] || 0) + (parseFloat(t.amount) || 0);
   });
-
   const activeBudgets = Object.keys(categoryBudgets).filter(c => categoryBudgets[c] > 0);
-
   if (!activeBudgets.length) {
     container.innerHTML = `<p class="text-xs text-slate-500 py-2 text-center">No budget set yet.</p>`;
     return;
   }
-
   container.innerHTML = activeBudgets.map(cat => {
     const limit = categoryBudgets[cat];
     const spent = spentByCat[cat] || 0;
     const percent = Math.min(((spent / limit) * 100), 100).toFixed(1);
-    const isOver = spent > limit;
-
     return `
       <div class="space-y-1">
         <div class="flex justify-between text-xs">
           <span class="font-semibold text-white">${cat} Budget</span>
-          <span class="font-bold ${isOver ? 'text-rose-400' : 'text-slate-300'}">${userCurrency} ${spent.toFixed(2)} / ${limit.toFixed(2)}</span>
+          <span class="text-slate-300">${userCurrency} ${spent.toFixed(2)} / ${limit.toFixed(2)}</span>
         </div>
         <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
-          <div class="h-full ${isOver ? 'bg-rose-500' : 'bg-indigo-500'}" style="width: ${percent}%"></div>
+          <div class="h-full bg-indigo-500" style="width: ${percent}%"></div>
         </div>
       </div>
     `;
@@ -361,60 +290,35 @@ function renderBudgets(transactions) {
 function renderSavingsGoals() {
   const container = document.getElementById('savings-goals-list');
   if (!container) return;
-
   if (!savingsGoals.length) {
-    container.innerHTML = `<p class="text-xs text-slate-500 py-1 text-center">No savings goals created.</p>`;
+    container.innerHTML = `<p class="text-xs text-slate-500 py-1 text-center">No savings goals.</p>`;
     return;
   }
-
-  container.innerHTML = savingsGoals.map((g) => {
+  container.innerHTML = savingsGoals.map(g => {
     const percent = Math.min(((g.saved / g.target) * 100), 100).toFixed(1);
-    return `
-      <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
-        <div class="flex justify-between text-xs font-semibold">
-          <span class="text-white">${g.title}</span>
-          <span class="text-emerald-400">${userCurrency} ${g.saved} / ${g.target} (${percent}%)</span>
-        </div>
-        <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
-          <div class="h-full bg-emerald-500 rounded-full" style="width: ${percent}%"></div>
-        </div>
-      </div>
-    `;
+    return `<div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs"><div class="flex justify-between font-semibold"><span class="text-white">${g.title}</span><span class="text-emerald-400">${userCurrency} ${g.saved}/${g.target}</span></div></div>`;
   }).join('');
 }
 
 function renderDebtLoan() {
   const container = document.getElementById('debt-loan-list');
   if (!container) return;
-
   if (!debtRecords.length) {
-    container.innerHTML = `<p class="text-xs text-slate-500 py-1 text-center">No debt or loan records.</p>`;
+    container.innerHTML = `<p class="text-xs text-slate-500 py-1 text-center">No debt records.</p>`;
     return;
   }
-
-  container.innerHTML = debtRecords.map((d) => {
-    const isLent = d.type === 'Lent';
-    return `
-      <div class="flex justify-between items-center p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs">
-        <div>
-          <span class="font-bold text-white">${d.person}</span>
-          <span class="text-[10px] block ${isLent ? 'text-emerald-400' : 'text-rose-400'}">${isLent ? 'Lent (পাবো)' : 'Borrowed (দেবো)'}</span>
-        </div>
-        <span class="font-bold text-white">${userCurrency} ${parseFloat(d.amount).toFixed(2)}</span>
-      </div>
-    `;
-  }).join('');
+  container.innerHTML = debtRecords.map(d => `<div class="flex justify-between p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs"><div><span class="font-bold text-white">${d.person}</span></div><span class="font-bold text-white">${userCurrency} ${d.amount}</span></div>`).join('');
 }
 
 function loadGoalsAndDebts() {
-  const userId = currentUser ? currentUser.id : 'local_user';
-  savingsGoals = JSON.parse(localStorage.getItem(`spendly_goals_${userId}`) || '[]');
-  debtRecords = JSON.parse(localStorage.getItem(`spendly_debts_${userId}`) || '[]');
+  const uId = currentUser ? currentUser.id : 'local_user';
+  savingsGoals = JSON.parse(localStorage.getItem(`spendly_goals_${uId}`) || '[]');
+  debtRecords = JSON.parse(localStorage.getItem(`spendly_debts_${uId}`) || '[]');
 }
 
 function loadSavedBudgets() {
-  const userId = currentUser ? currentUser.id : 'local_user';
-  const saved = localStorage.getItem(`spendly_budgets_${userId}`);
+  const uId = currentUser ? currentUser.id : 'local_user';
+  const saved = localStorage.getItem(`spendly_budgets_${uId}`);
   if (saved) categoryBudgets = JSON.parse(saved);
 }
 
@@ -425,36 +329,20 @@ function updateMetrics(transactions) {
     if (t.type === 'Income') income += amt;
     else expense += amt;
   });
-
   const balance = income - expense;
-  const balEl = document.getElementById('total-balance');
-  const incEl = document.getElementById('total-income');
-  const expEl = document.getElementById('total-expense');
-
-  if (balEl) balEl.innerText = `${userCurrency} ${balance.toFixed(2)}`;
-  if (incEl) incEl.innerText = `+${userCurrency} ${income.toFixed(2)}`;
-  if (expEl) expEl.innerText = `-${userCurrency} ${expense.toFixed(2)}`;
+  if (document.getElementById('total-balance')) document.getElementById('total-balance').innerText = `${userCurrency} ${balance.toFixed(2)}`;
+  if (document.getElementById('total-income')) document.getElementById('total-income').innerText = `+${userCurrency} ${income.toFixed(2)}`;
+  if (document.getElementById('total-expense')) document.getElementById('total-expense').innerText = `-${userCurrency} ${expense.toFixed(2)}`;
 }
 
 window.switchTab = function(tabName) {
   localStorage.setItem('spendly_active_tab', tabName);
   document.querySelectorAll('.tab-page').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.nav-btn').forEach(el => el.className = "nav-btn flex flex-col items-center gap-1 text-slate-400 hover:text-white font-semibold text-[10px]");
-
-  const activeTab = document.getElementById(`tab-${tabName}`);
-  if (activeTab) activeTab.classList.remove('hidden');
-
-  const activeNav = document.getElementById(`nav-${tabName}`);
-  if (activeNav) activeNav.className = "nav-btn flex flex-col items-center gap-1 text-indigo-400 font-semibold text-[10px]";
-
-  if (tabName === 'transactions') window.applyFiltersAndRender();
-  if (tabName === 'analytics') {
-    renderAnalyticsChart(allTransactions);
-    renderBudgets(allTransactions);
-  }
+  document.getElementById(`tab-${tabName}`)?.classList.remove('hidden');
+  document.getElementById(`nav-${tabName}`) && (document.getElementById(`nav-${tabName}`).className = "nav-btn flex flex-col items-center gap-1 text-indigo-400 font-semibold text-[10px]");
 };
 
-// Modal Control Functions
 window.openTransactionModal = () => {
   document.getElementById('modal-trans-form').reset();
   document.getElementById('modal-trans-id').value = '';
@@ -462,19 +350,10 @@ window.openTransactionModal = () => {
   document.getElementById('trans-modal').classList.remove('hidden');
 };
 window.closeTransactionModal = () => document.getElementById('trans-modal').classList.add('hidden');
-
-window.openBudgetModal = () => {
-  document.getElementById('budget-food').value = categoryBudgets.Food || '';
-  document.getElementById('budget-rent').value = categoryBudgets.Rent || '';
-  document.getElementById('budget-shopping').value = categoryBudgets.Shopping || '';
-  document.getElementById('budget-bills').value = categoryBudgets.Bills || '';
-  document.getElementById('budget-modal').classList.remove('hidden');
-};
+window.openBudgetModal = () => document.getElementById('budget-modal').classList.remove('hidden');
 window.closeBudgetModal = () => document.getElementById('budget-modal').classList.add('hidden');
-
 window.openGoalModal = () => document.getElementById('goal-modal').classList.remove('hidden');
 window.closeGoalModal = () => document.getElementById('goal-modal').classList.add('hidden');
-
 window.openDebtModal = () => document.getElementById('debt-modal').classList.remove('hidden');
 window.closeDebtModal = () => document.getElementById('debt-modal').classList.add('hidden');
 
@@ -491,52 +370,35 @@ function bindEvents() {
   document.getElementById('filter-to-date')?.addEventListener('change', window.applyFiltersAndRender);
   document.getElementById('sort-by-select')?.addEventListener('change', window.applyFiltersAndRender);
 
-  document.getElementById('currency-select')?.addEventListener('change', async (e) => {
-    userCurrency = e.target.value;
-    if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
-      await dbClient.from('profiles').update({ currency: userCurrency }).eq('id', currentUser.id);
-    }
-    await loadTransactions();
-  });
-
   document.getElementById('modal-trans-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const id = document.getElementById('modal-trans-id').value;
     const title = document.getElementById('modal-trans-title').value;
     const amount = parseFloat(document.getElementById('modal-trans-amount').value);
     const customDate = document.getElementById('modal-trans-date').value;
     const type = document.getElementById('modal-trans-type').value;
-    const payment = document.getElementById('modal-trans-payment').value;
     const category = document.getElementById('modal-trans-category').value;
 
-    const recordDate = customDate ? new Date(customDate).toISOString() : new Date().toISOString();
-    const payload = { 
-      user_id: currentUser ? currentUser.id : 'local_user', 
-      title, 
-      amount, 
-      type, 
-      category, 
-      created_at: recordDate 
+    const payload = {
+      user_id: currentUser ? currentUser.id : 'local_user',
+      title,
+      amount,
+      type,
+      category,
+      created_at: customDate ? new Date(customDate).toISOString() : new Date().toISOString()
     };
 
-    let isSavedOnline = false;
-
+    let isSaved = false;
     if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
       try {
-        if (id && !id.startsWith('temp_')) {
-          const { error } = await dbClient.from('transactions').update(payload).eq('id', id);
-          if (!error) isSavedOnline = true;
-        } else {
-          const { error } = await dbClient.from('transactions').insert([payload]);
-          if (!error) isSavedOnline = true;
-        }
+        const { error } = await dbClient.from('transactions').insert([payload]);
+        if (!error) isSaved = true;
       } catch (err) {
-        console.error("Supabase Save Error:", err);
+        console.error(err);
       }
     }
 
-    if (!isSavedOnline) {
-      addToOfflineQueue(id ? 'update' : 'insert', payload, id);
+    if (!isSaved) {
+      addToOfflineQueue('insert', payload);
     }
 
     window.closeTransactionModal();
@@ -545,83 +407,62 @@ function bindEvents() {
 
   document.getElementById('goal-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const userId = currentUser ? currentUser.id : 'local_user';
+    const uId = currentUser ? currentUser.id : 'local_user';
     savingsGoals.push({
       title: document.getElementById('goal-title').value,
       target: parseFloat(document.getElementById('goal-target').value),
       saved: parseFloat(document.getElementById('goal-saved').value)
     });
-    localStorage.setItem(`spendly_goals_${userId}`, JSON.stringify(savingsGoals));
+    localStorage.setItem(`spendly_goals_${uId}`, JSON.stringify(savingsGoals));
     window.closeGoalModal();
     renderSavingsGoals();
   });
 
   document.getElementById('debt-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const userId = currentUser ? currentUser.id : 'local_user';
+    const uId = currentUser ? currentUser.id : 'local_user';
     debtRecords.push({
       person: document.getElementById('debt-person').value,
       amount: parseFloat(document.getElementById('debt-amount').value),
       type: document.getElementById('debt-type').value
     });
-    localStorage.setItem(`spendly_debts_${userId}`, JSON.stringify(debtRecords));
+    localStorage.setItem(`spendly_debts_${uId}`, JSON.stringify(debtRecords));
     window.closeDebtModal();
     renderDebtLoan();
   });
 
   document.getElementById('budget-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const userId = currentUser ? currentUser.id : 'local_user';
+    const uId = currentUser ? currentUser.id : 'local_user';
     categoryBudgets.Food = parseFloat(document.getElementById('budget-food').value) || 0;
     categoryBudgets.Rent = parseFloat(document.getElementById('budget-rent').value) || 0;
     categoryBudgets.Shopping = parseFloat(document.getElementById('budget-shopping').value) || 0;
     categoryBudgets.Bills = parseFloat(document.getElementById('budget-bills').value) || 0;
-
-    localStorage.setItem(`spendly_budgets_${userId}`, JSON.stringify(categoryBudgets));
+    localStorage.setItem(`spendly_budgets_${uId}`, JSON.stringify(categoryBudgets));
     window.closeBudgetModal();
     renderBudgets(allTransactions);
   });
 }
 
-window.editTransaction = function(id) {
-  const t = allTransactions.find(item => item.id == id);
-  if (!t) return;
-
-  document.getElementById('modal-trans-id').value = t.id;
-  document.getElementById('modal-trans-title').value = t.title;
-  document.getElementById('modal-trans-amount').value = t.amount;
-  document.getElementById('modal-trans-type').value = t.type;
-  document.getElementById('modal-trans-category').value = t.category || 'General';
-  document.getElementById('modal-trans-payment').value = t.payment_method || 'Cash';
-  if (t.created_at) document.getElementById('modal-trans-date').value = t.created_at.split('T')[0];
-
-  document.getElementById('trans-modal').classList.remove('hidden');
-};
-
 window.deleteTransaction = async function(id) {
-  if (!confirm("Are you sure you want to delete this item?")) return;
-  
-  let deletedOnline = false;
+  if (!confirm("Are you sure?")) return;
+  let deleted = false;
   if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
     try {
       if (!String(id).startsWith('temp_')) {
         const { error } = await dbClient.from('transactions').delete().eq('id', id);
-        if (!error) deletedOnline = true;
+        if (!error) deleted = true;
       }
-    } catch (err) {
-      console.error("Delete online error:", err);
+    } catch (e) {
+      console.error(e);
     }
   }
-
-  if (!deletedOnline) {
-    addToOfflineQueue('delete', null, id);
-  }
-
+  if (!deleted) addToOfflineQueue('delete', null, id);
   await loadTransactions();
 };
 
 window.exportTransactionsCSV = function() {
-  if (!allTransactions.length) return alert("No data to export!");
+  if (!allTransactions.length) return alert("No data!");
   let csv = 'Title,Amount,Type,Category,Date\n';
   allTransactions.forEach(t => {
     csv += `"${t.title}","${t.amount}","${t.type}","${t.category}","${t.created_at ? t.created_at.split('T')[0] : ''}"\n`;
@@ -629,18 +470,10 @@ window.exportTransactionsCSV = function() {
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `Spendly_Report_${new Date().toISOString().split('T')[0]}.csv`;
+  a.download = `Spendly_Report.csv`;
   a.click();
 };
 
 window.exportMonthlyPDF = function() {
-  const element = document.getElementById('pdf-report-area');
-  const opt = {
-    margin: 0.5,
-    filename: `Spendly_Report_${new Date().toISOString().split('T')[0]}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2 },
-    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-  };
-  html2pdf().set(opt).from(element).save();
+  html2pdf().from(document.getElementById('pdf-report-area')).save(`Spendly_Report.pdf`);
 };
