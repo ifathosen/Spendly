@@ -33,7 +33,6 @@ async function loadUserProfile() {
 
     const name = (data && data.full_name) ? data.full_name : currentUser.email.split('@')[0];
 
-    document.getElementById('user-name').innerText = name;
     document.getElementById('user-avatar').innerText = name.charAt(0).toUpperCase();
     document.getElementById('profile-name-val').innerText = name;
     document.getElementById('profile-email-val').innerText = currentUser.email;
@@ -91,24 +90,24 @@ function createItemHTML(t) {
   const amt = parseFloat(t.amount) || 0;
 
   return `
-    <div class="flex items-center justify-between p-4 bg-slate-950/80 border border-slate-800 rounded-xl">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-lg ${isIncome ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'} flex items-center justify-center font-bold text-xs">
+    <div class="flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-xl">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg ${isIncome ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'} flex items-center justify-center font-bold text-xs">
           <i class="fa-solid ${isIncome ? 'fa-arrow-down' : 'fa-arrow-up'}"></i>
         </div>
         <div>
-          <h4 class="text-sm font-bold text-white">${t.title}</h4>
-          <span class="text-[11px] text-slate-500">${t.category || 'General'}</span>
+          <h4 class="text-xs font-bold text-white">${t.title}</h4>
+          <span class="text-[10px] text-slate-500">${t.category || 'General'}</span>
         </div>
       </div>
-      <div class="flex items-center gap-4">
-        <span class="text-sm font-bold ${isIncome ? 'text-emerald-400' : 'text-rose-400'}">
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-bold ${isIncome ? 'text-emerald-400' : 'text-rose-400'}">
           ${isIncome ? '+' : '-'}${userCurrency} ${amt.toFixed(2)}
         </span>
-        <button onclick="editTransaction(${t.id})" class="text-slate-400 hover:text-indigo-400 text-xs">
+        <button onclick="editTransaction(${t.id})" class="text-slate-500 hover:text-indigo-400 text-xs">
           <i class="fa-solid fa-pen"></i>
         </button>
-        <button onclick="deleteTransaction(${t.id})" class="text-slate-400 hover:text-rose-400 text-xs">
+        <button onclick="deleteTransaction(${t.id})" class="text-slate-500 hover:text-rose-400 text-xs">
           <i class="fa-solid fa-trash"></i>
         </button>
       </div>
@@ -135,14 +134,14 @@ function updateMetrics(transactions) {
 
 function switchTab(tabName) {
   document.querySelectorAll('.tab-page').forEach(el => el.classList.add('hidden'));
-  document.querySelectorAll('.nav-item').forEach(el => {
-    el.className = "nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-slate-400 hover:text-white hover:bg-slate-900 transition";
+  document.querySelectorAll('.nav-btn').forEach(el => {
+    el.className = "nav-btn flex flex-col items-center gap-1 text-slate-400 hover:text-white font-semibold text-[10px]";
   });
 
-  document.getElementById(`tab-content-${tabName}`).classList.remove('hidden');
+  document.getElementById(`tab-${tabName}`).classList.remove('hidden');
   const activeNav = document.getElementById(`nav-${tabName}`);
   if (activeNav) {
-    activeNav.className = "nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition bg-indigo-600 text-white shadow-lg shadow-indigo-600/20";
+    activeNav.className = "nav-btn flex flex-col items-center gap-1 text-indigo-400 font-semibold text-[10px]";
   }
 }
 
