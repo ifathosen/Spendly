@@ -31,13 +31,19 @@ async function loadUserProfile() {
 
     if (data && data.currency) userCurrency = data.currency;
 
-    const name = (data && data.full_name) ? data.full_name : currentUser.email.split('@')[0];
+    const name = (data && data.full_name) ? data.full_name : (currentUser.email ? currentUser.email.split('@')[0] : 'User');
 
-    document.getElementById('user-avatar').innerText = name.charAt(0).toUpperCase();
-    document.getElementById('profile-name-val').innerText = name;
-    document.getElementById('profile-email-val').innerText = currentUser.email;
+    const avatarEl = document.getElementById('user-avatar');
+    const nameEl = document.getElementById('profile-name-val');
+    const emailEl = document.getElementById('profile-email-val');
+    const currEl = document.getElementById('profile-currency-val');
+
+    if (avatarEl) avatarEl.innerText = name.charAt(0).toUpperCase();
+    if (nameEl) nameEl.innerText = name;
+    if (emailEl) emailEl.innerText = currentUser.email || '';
+    if (currEl) currEl.innerText = userCurrency;
   } catch (err) {
-    console.error(err);
+    console.error("Profile Load Error:", err);
   }
 }
 
@@ -52,11 +58,20 @@ async function loadTransactions() {
     if (error) throw error;
 
     allTransactions = data || [];
+    
+    // All Tab Renderers
     renderDashboardList(allTransactions);
     renderFullList(allTransactions);
+    renderAnalytics(allTransactions);
     updateMetrics(allTransactions);
+
+    const badge = document.getElementById('trans-count-badge');
+    const profileCount = document.getElementById('profile-trans-count');
+    if (badge) badge.innerText = `${allTransactions.length} Items`;
+    if (profileCount) profileCount.innerText = allTransactions.length;
+
   } catch (err) {
-    console.error(err);
+    console.error("Transactions Fetch Error:", err);
   }
 }
 
@@ -115,6 +130,45 @@ function createItemHTML(t) {
   `;
 }
 
+function renderAnalytics(transactions) {
+  const container = document.getElementById('analytics-category-list');
+  if (!container) return;
+
+  const expenses = transactions.filter(t => t.type === 'Expense');
+  
+  if (expenses.length === 0) {
+    container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">No expense data available for analytics.</p>`;
+    return;
+  }
+
+  const categoryTotals = {};
+  let totalExpenseAmount = 0;
+
+  expenses.forEach(t => {
+    const amt = parseFloat(t.amount) || 0;
+    const cat = t.category || 'General';
+    categoryTotals[cat] = (categoryTotals[cat] || 0) + amt;
+    totalExpenseAmount += amt;
+  });
+
+  container.innerHTML = Object.keys(categoryTotals).map(cat => {
+    const catAmount = categoryTotals[cat];
+    const percentage = totalExpenseAmount > 0 ? ((catAmount / totalExpenseAmount) * 100).toFixed(1) : 0;
+
+    return `
+      <div class="space-y-1.5">
+        <div class="flex justify-between text-xs">
+          <span class="font-semibold text-slate-300">${cat}</span>
+          <span class="font-bold text-rose-400">${userCurrency} ${catAmount.toFixed(2)} (${percentage}%)</span>
+        </div>
+        <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+          <div class="h-full bg-indigo-500 rounded-full" style="width: ${percentage}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 function updateMetrics(transactions) {
   let income = 0;
   let expense = 0;
@@ -127,9 +181,13 @@ function updateMetrics(transactions) {
 
   const balance = income - expense;
 
-  document.getElementById('total-balance').innerText = `${userCurrency} ${balance.toFixed(2)}`;
-  document.getElementById('total-income').innerText = `+${userCurrency} ${income.toFixed(2)}`;
-  document.getElementById('total-expense').innerText = `-${userCurrency} ${expense.toFixed(2)}`;
+  const balEl = document.getElementById('total-balance');
+  const incEl = document.getElementById('total-income');
+  const expEl = document.getElementById('total-expense');
+
+  if (balEl) balEl.innerText = `${userCurrency} ${balance.toFixed(2)}`;
+  if (incEl) incEl.innerText = `+${userCurrency} ${income.toFixed(2)}`;
+  if (expEl) expEl.innerText = `-${userCurrency} ${expense.toFixed(2)}`;
 }
 
 function switchTab(tabName) {
@@ -138,11 +196,17 @@ function switchTab(tabName) {
     el.className = "nav-btn flex flex-col items-center gap-1 text-slate-400 hover:text-white font-semibold text-[10px]";
   });
 
-  document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+  const activeTab = document.getElementById(`tab-${tabName}`);
+  if (activeTab) activeTab.classList.remove('hidden');
+
   const activeNav = document.getElementById(`nav-${tabName}`);
   if (activeNav) {
     activeNav.className = "nav-btn flex flex-col items-center gap-1 text-indigo-400 font-semibold text-[10px]";
   }
+
+  // Refresh view on tab click
+  if (tabName === 'transactions') renderFullList(allTransactions);
+  if (tabName === 'analytics') renderAnalytics(allTransactions);
 }
 
 function openTransactionModal() {
@@ -156,34 +220,50 @@ function closeTransactionModal() {
 }
 
 function bindEvents() {
-  document.getElementById('logout-btn').addEventListener('click', async () => {
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', logoutUser);
+  }
+
+  const modalForm = document.getElementById('modal-trans-form');
+  if (modalForm) {
+    modalForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('modal-trans-id').value;
+      const title = document.getElementById('modal-trans-title').value;
+      const amount = parseFloat(document.getElementById('modal-trans-amount').value);
+      const type = document.getElementById('modal-trans-type').value;
+      const category = document.getElementById('modal-trans-category').value;
+
+      if (id) {
+        await dbClient.from('transactions').update({ title, amount, type, category }).eq('id', id);
+      } else {
+        await dbClient.from('transactions').insert([{ user_id: currentUser.id, title, amount, type, category }]);
+      }
+
+      closeTransactionModal();
+      await loadTransactions();
+    });
+  }
+
+  const searchInput = document.getElementById('search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase();
+      const filtered = allTransactions.filter(t => 
+        t.title.toLowerCase().includes(q) || 
+        (t.category && t.category.toLowerCase().includes(q))
+      );
+      renderFullList(filtered);
+    });
+  }
+}
+
+async function logoutUser() {
+  if (dbClient) {
     await dbClient.auth.signOut();
     window.location.href = 'index.html';
-  });
-
-  document.getElementById('modal-trans-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const id = document.getElementById('modal-trans-id').value;
-    const title = document.getElementById('modal-trans-title').value;
-    const amount = parseFloat(document.getElementById('modal-trans-amount').value);
-    const type = document.getElementById('modal-trans-type').value;
-    const category = document.getElementById('modal-trans-category').value;
-
-    if (id) {
-      await dbClient.from('transactions').update({ title, amount, type, category }).eq('id', id);
-    } else {
-      await dbClient.from('transactions').insert([{ user_id: currentUser.id, title, amount, type, category }]);
-    }
-
-    closeTransactionModal();
-    await loadTransactions();
-  });
-
-  document.getElementById('search-input').addEventListener('input', (e) => {
-    const q = e.target.value.toLowerCase();
-    const filtered = allTransactions.filter(t => t.title.toLowerCase().includes(q));
-    renderFullList(filtered);
-  });
+  }
 }
 
 window.editTransaction = function(id) {
@@ -194,7 +274,7 @@ window.editTransaction = function(id) {
   document.getElementById('modal-trans-title').value = t.title;
   document.getElementById('modal-trans-amount').value = t.amount;
   document.getElementById('modal-trans-type').value = t.type;
-  document.getElementById('modal-trans-category').value = t.category;
+  document.getElementById('modal-trans-category').value = t.category || 'General';
 
   document.getElementById('trans-modal').classList.remove('hidden');
 };
