@@ -1,8 +1,10 @@
 let currentUser = null;
-let userCurrency = 'SAR ﷼';
 let allTransactions = [];
 let chartInstance = null;
 let categoryBudgets = { Food: 0, Rent: 0, Shopping: 0 };
+
+const KSA_ACCOUNTS = ['Cash', 'Al Rajhi', 'SNB', 'Barq', 'Neo', 'Enjaz'];
+const BD_ACCOUNTS = ['IBBL', 'MTB', 'Midland', 'BRAC', 'EBL', 'Pubali'];
 
 document.addEventListener('DOMContentLoaded', async () => {
   bindEvents();
@@ -65,103 +67,191 @@ async function loadTransactions() {
   if (document.getElementById('trans-count-badge')) document.getElementById('trans-count-badge').innerText = `${allTransactions.length} Items`;
 }
 
-// Calculate Individual & Category Balances
+// FULL MULTI-CURRENCY & LIVE BALANCE CALCULATOR
 function updateMetricsAndAccounts(transactions) {
-  let totalIncome = 0;
-  let totalExpense = 0;
+  let ksaIncome = 0;
+  let ksaExpense = 0;
   
   const accBalances = {
-    Cash: 0,
-    'Al Rajhi': 0,
-    SNB: 0,
-    Barq: 0,
-    Neo: 0,
-    Enjaz: 0,
-    'BD Bank Account': 0
+    // Saudi SAR Accounts
+    'Cash': 0, 'Al Rajhi': 0, 'SNB': 0, 'Barq': 0, 'Neo': 0, 'Enjaz': 0,
+    // BD BDT Accounts
+    'IBBL': 0, 'MTB': 0, 'Midland': 0, 'BRAC': 0, 'EBL': 0, 'Pubali': 0
   };
 
   transactions.forEach(t => {
     const amt = parseFloat(t.amount) || 0;
-    
-    if (t.type === 'Income') {
-      totalIncome += amt;
+    const fee = parseFloat(t.remit_fee) || 0;
+    const convertedAmt = parseFloat(t.converted_amount) || 0;
+    const incentive = parseFloat(t.incentive_amount) || 0;
+    const type = t.type;
+
+    if (type === 'Income') {
       const acc = t.payment_method || 'Cash';
       if (accBalances.hasOwnProperty(acc)) accBalances[acc] += amt;
-    } else if (t.type === 'Expense') {
-      totalExpense += amt;
+      if (KSA_ACCOUNTS.includes(acc)) ksaIncome += amt;
+
+    } else if (type === 'Expense') {
       const acc = t.payment_method || 'Cash';
       if (accBalances.hasOwnProperty(acc)) accBalances[acc] -= amt;
-    } else if (t.type === 'Transfer') {
+      if (KSA_ACCOUNTS.includes(acc)) ksaExpense += amt;
+
+    } else if (type === 'Internal Transfer') {
       const fromAcc = t.from_account || t.payment_method;
       const toAcc = t.to_account;
       if (accBalances.hasOwnProperty(fromAcc)) accBalances[fromAcc] -= amt;
       if (accBalances.hasOwnProperty(toAcc)) accBalances[toAcc] += amt;
+
+    } else if (type === 'International Transfer') {
+      // KSA -> BD Remittance
+      const senderAcc = t.from_account;
+      const receiverAcc = t.to_account;
+
+      // KSA Account loses amount + fee (in SAR)
+      if (accBalances.hasOwnProperty(senderAcc)) accBalances[senderAcc] -= (amt + fee);
+      if (KSA_ACCOUNTS.includes(senderAcc)) ksaExpense += (amt + fee);
+
+      // BD Account gains converted_amount + incentive (in BDT)
+      const totalBdtGained = convertedAmt + incentive;
+      if (accBalances.hasOwnProperty(receiverAcc)) accBalances[receiverAcc] += totalBdtGained;
+
+    } else if (type === 'Outward Expense') {
+      // BD -> KSA Transfer
+      const bdFromAcc = t.from_account;
+      const ksaToAcc = t.to_account;
+
+      // BD Account loses BDT amount
+      if (accBalances.hasOwnProperty(bdFromAcc)) accBalances[bdFromAcc] -= amt;
+      
+      // KSA Account gains converted SAR amount
+      if (accBalances.hasOwnProperty(ksaToAcc)) accBalances[ksaToAcc] += convertedAmt;
     }
   });
 
+  // Calculate Saudi Totals
   const cashTotal = accBalances['Cash'];
-  const bankTotal = accBalances['Al Rajhi'] + accBalances['SNB'] + accBalances['Barq'] + accBalances['Neo'] + accBalances['Enjaz'] + accBalances['BD Bank Account'];
-  const grandTotal = cashTotal + bankTotal;
+  let saudiBankTotal = 0;
+  KSA_ACCOUNTS.forEach(acc => { if(acc !== 'Cash') saudiBankTotal += accBalances[acc]; });
+  const ksaGrandTotal = cashTotal + saudiBankTotal;
 
-  if (document.getElementById('total-balance')) document.getElementById('total-balance').innerText = `${userCurrency} ${grandTotal.toFixed(2)}`;
-  if (document.getElementById('dash-cash-total')) document.getElementById('dash-cash-total').innerText = `${userCurrency} ${cashTotal.toFixed(2)}`;
-  if (document.getElementById('dash-bank-total')) document.getElementById('dash-bank-total').innerText = `${userCurrency} ${bankTotal.toFixed(2)}`;
-  if (document.getElementById('total-income')) document.getElementById('total-income').innerText = `+${userCurrency} ${totalIncome.toFixed(2)}`;
-  if (document.getElementById('total-expense')) document.getElementById('total-expense').innerText = `-${userCurrency} ${totalExpense.toFixed(2)}`;
+  // Calculate BD Totals
+  let bdTotalWealthBDT = 0;
+  BD_ACCOUNTS.forEach(acc => { bdTotalWealthBDT += accBalances[acc]; });
+  const bdWealthSAR = bdTotalWealthBDT > 0 ? (bdTotalWealthBDT / 32.50) : 0;
 
+  // Render KSA Hub Dashboard
+  if (document.getElementById('total-balance')) document.getElementById('total-balance').innerText = `SAR ${ksaGrandTotal.toFixed(2)}`;
+  if (document.getElementById('dash-cash-total')) document.getElementById('dash-cash-total').innerText = `SAR ${cashTotal.toFixed(2)}`;
+  if (document.getElementById('dash-bank-total')) document.getElementById('dash-bank-total').innerText = `SAR ${saudiBankTotal.toFixed(2)}`;
+  if (document.getElementById('total-income')) document.getElementById('total-income').innerText = `+SAR ${ksaIncome.toFixed(2)}`;
+  if (document.getElementById('total-expense')) document.getElementById('total-expense').innerText = `-SAR ${ksaExpense.toFixed(2)}`;
+
+  // Render KSA Bank Grid
   const bankGrid = document.getElementById('bank-accounts-grid');
   if (bankGrid) {
-    const bankList = ['Al Rajhi', 'SNB', 'Barq', 'Neo', 'Enjaz', 'BD Bank Account'];
-    bankGrid.innerHTML = bankList.map(b => `
+    bankGrid.innerHTML = KSA_ACCOUNTS.filter(b => b !== 'Cash').map(b => `
       <div class="p-2.5 bg-slate-950/60 border border-slate-800 rounded-xl">
         <span class="text-[10px] text-slate-400 font-bold block">${b}</span>
-        <span class="text-xs font-bold text-white">${userCurrency} ${accBalances[b].toFixed(2)}</span>
+        <span class="text-xs font-bold text-white">SAR ${accBalances[b].toFixed(2)}</span>
       </div>
     `).join('');
   }
 
+  // Render BD Wealth Tab
+  if (document.getElementById('total-bd-wealth')) document.getElementById('total-bd-wealth').innerText = `BDT ${bdTotalWealthBDT.toFixed(2)}`;
+  if (document.getElementById('bd-wealth-sar-equivalent')) document.getElementById('bd-wealth-sar-equivalent').innerText = `≈ SAR ${bdWealthSAR.toFixed(2)}`;
+
+  const bdBanksGrid = document.getElementById('bd-bank-accounts-grid');
+  if (bdBanksGrid) {
+    bdBanksGrid.innerHTML = BD_ACCOUNTS.map(b => `
+      <div class="p-2.5 bg-slate-950/60 border border-slate-800 rounded-xl">
+        <span class="text-[10px] text-emerald-400 font-bold block">${b}</span>
+        <span class="text-xs font-bold text-white">BDT ${accBalances[b].toFixed(2)}</span>
+      </div>
+    `).join('');
+  }
+
+  // Store globally for Live Balance Preview in Modal
   window.currentAccBalances = accBalances;
 }
 
+// LIVE BALANCE PREVIEW IN MODAL FOR ANY SELECTED ACCOUNT
 window.updateModalBalancePreview = function() {
   const typeVal = document.getElementById('modal-trans-type').value;
   let selectedAcc = 'Cash';
-  if (typeVal === 'Transfer') {
+
+  if (typeVal === 'Internal Transfer') {
     selectedAcc = document.getElementById('modal-transfer-from').value;
+  } else if (typeVal === 'International Transfer') {
+    selectedAcc = document.getElementById('remit-sender-acc').value;
+  } else if (typeVal === 'Outward Expense') {
+    selectedAcc = document.getElementById('outward-from-acc').value;
   } else {
     selectedAcc = document.getElementById('modal-trans-payment').value;
   }
 
   const bal = window.currentAccBalances ? (window.currentAccBalances[selectedAcc] || 0) : 0;
+  const isBdAcc = BD_ACCOUNTS.includes(selectedAcc);
+  const currCode = isBdAcc ? 'BDT' : 'SAR';
+
+  // Update Currency Symbol Label next to Amount
+  const currLabel = document.getElementById('modal-currency-label');
+  if (currLabel) currLabel.innerText = currCode;
+
   const previewEl = document.getElementById('modal-selected-acc-bal');
   if (previewEl) {
-    previewEl.innerText = `${userCurrency} ${bal.toFixed(2)}`;
+    previewEl.innerText = `${currCode} ${bal.toFixed(2)}`;
     previewEl.className = bal >= 0 ? "font-bold text-emerald-400" : "font-bold text-rose-400";
   }
 };
 
 window.handleTypeChange = function(selectEl) {
+  const typeVal = selectEl.value;
   const customContainer = document.getElementById('custom-type-container');
   const transferAccContainer = document.getElementById('transfer-acc-container');
   const standardAccContainer = document.getElementById('standard-acc-container');
-  
-  if (selectEl.value === 'CUSTOM') {
+  const remitContainer = document.getElementById('remit-fields-container');
+  const outwardContainer = document.getElementById('outward-fields-container');
+  const catContainer = document.getElementById('category-container');
+
+  // Reset Visibility
+  customContainer.classList.add('hidden');
+  transferAccContainer.classList.add('hidden');
+  standardAccContainer.classList.add('hidden');
+  remitContainer.classList.add('hidden');
+  outwardContainer.classList.add('hidden');
+  catContainer.classList.remove('hidden');
+
+  if (typeVal === 'CUSTOM') {
     customContainer.classList.remove('hidden');
-    transferAccContainer.classList.add('hidden');
     standardAccContainer.classList.remove('hidden');
-  } else if (selectEl.value === 'Transfer') {
-    customContainer.classList.add('hidden');
+  } else if (typeVal === 'Internal Transfer') {
     transferAccContainer.classList.remove('hidden');
-    standardAccContainer.classList.add('hidden');
+    catContainer.classList.add('hidden');
+    populateInternalTransferOptions();
+  } else if (typeVal === 'International Transfer') {
+    remitContainer.classList.remove('hidden');
+    catContainer.classList.add('hidden');
+  } else if (typeVal === 'Outward Expense') {
+    outwardContainer.classList.remove('hidden');
+    catContainer.classList.add('hidden');
   } else {
-    customContainer.classList.add('hidden');
-    transferAccContainer.classList.add('hidden');
     standardAccContainer.classList.remove('hidden');
   }
+
   window.updateModalBalancePreview();
 };
 
-// SHOW ONLY TODAY'S TRANSACTIONS ON DASHBOARD
+function populateInternalTransferOptions() {
+  const fromSel = document.getElementById('modal-transfer-from');
+  const toSel = document.getElementById('modal-transfer-to');
+  const allAccs = [...KSA_ACCOUNTS, ...BD_ACCOUNTS];
+
+  fromSel.innerHTML = allAccs.map(a => `<option value="${a}">${a}</option>`).join('');
+  toSel.innerHTML = allAccs.map(a => `<option value="${a}">${a}</option>`).join('');
+  toSel.value = 'Al Rajhi';
+}
+
 function renderTodayDashboardList(transactions) {
   const container = document.getElementById('dashboard-recent-list');
   if (!container) return;
@@ -185,7 +275,7 @@ window.applyFiltersAndRender = function() {
   const fromDate = document.getElementById('filter-from-date')?.value;
   const toDate = document.getElementById('filter-to-date')?.value;
 
-  if (searchQ) filtered = filtered.filter(t => (t.category && t.category.toLowerCase().includes(searchQ)) || (t.payment_method && t.payment_method.toLowerCase().includes(searchQ)));
+  if (searchQ) filtered = filtered.filter(t => (t.category && t.category.toLowerCase().includes(searchQ)) || (t.payment_method && t.payment_method.toLowerCase().includes(searchQ)) || (t.type && t.type.toLowerCase().includes(searchQ)));
   if (fromDate) filtered = filtered.filter(t => (t.created_at ? t.created_at.split('T')[0] : '') >= fromDate);
   if (toDate) filtered = filtered.filter(t => (t.created_at ? t.created_at.split('T')[0] : '') <= toDate);
 
@@ -197,9 +287,10 @@ window.applyFiltersAndRender = function() {
 };
 
 function createItemHTML(t) {
-  const isIncome = t.type === 'Income';
-  const isTransfer = t.type === 'Transfer';
+  const type = t.type;
   const amt = parseFloat(t.amount) || 0;
+  const isBd = BD_ACCOUNTS.includes(t.payment_method) || BD_ACCOUNTS.includes(t.to_account);
+  const curr = isBd ? 'BDT' : 'SAR';
   
   let formattedTime = '';
   if (t.created_at) {
@@ -207,61 +298,52 @@ function createItemHTML(t) {
     formattedTime = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' • ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
-  let subTitle = `${t.category || 'General'} (${t.payment_method || 'Cash'})`;
-  if (isTransfer) {
-    subTitle = `Transfer: ${t.from_account || t.payment_method} ➔ ${t.to_account}`;
+  let title = `${t.category || 'General'} (${t.payment_method || 'Cash'})`;
+  let badgeColor = 'bg-rose-500/10 text-rose-400';
+  let icon = 'fa-arrow-up';
+  let sign = '-';
+
+  if (type === 'Income') {
+    badgeColor = 'bg-emerald-500/10 text-emerald-400';
+    icon = 'fa-arrow-down';
+    sign = '+';
+  } else if (type === 'Internal Transfer') {
+    title = `Transfer: ${t.from_account} ➔ ${t.to_account}`;
+    badgeColor = 'bg-indigo-500/10 text-indigo-400';
+    icon = 'fa-right-left';
+    sign = '';
+  } else if (type === 'International Transfer') {
+    title = `Remittance: ${t.from_account} ➔ ${t.to_account}`;
+    badgeColor = 'bg-emerald-500/10 text-emerald-400';
+    icon = 'fa-paper-plane';
+    sign = '';
+  } else if (type === 'Outward Expense') {
+    title = `Outward: ${t.from_account} ➔ ${t.to_account}`;
+    badgeColor = 'bg-rose-500/10 text-rose-400';
+    icon = 'fa-plane-arrival';
+    sign = '';
   }
 
   return `
     <div class="flex items-center justify-between p-3 bg-slate-950/80 border border-slate-800 rounded-xl">
       <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-lg ${isIncome ? 'bg-emerald-500/10 text-emerald-400' : (isTransfer ? 'bg-indigo-500/10 text-indigo-400' : 'bg-rose-500/10 text-rose-400')} flex items-center justify-center font-bold text-xs">
-          <i class="fa-solid ${isIncome ? 'fa-arrow-down' : (isTransfer ? 'fa-right-left' : 'fa-arrow-up')}"></i>
+        <div class="w-8 h-8 rounded-lg ${badgeColor} flex items-center justify-center font-bold text-xs">
+          <i class="fa-solid ${icon}"></i>
         </div>
         <div>
-          <h4 class="text-xs font-bold text-white">${subTitle}</h4>
+          <h4 class="text-xs font-bold text-white">${title}</h4>
           <span class="text-[10px] text-slate-500">${formattedTime}</span>
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <span class="text-xs font-bold ${isIncome ? 'text-emerald-400' : (isTransfer ? 'text-indigo-400' : 'text-rose-400')}">
-          ${isIncome ? '+' : (isTransfer ? '' : '-')}${userCurrency} ${amt.toFixed(2)}
+        <span class="text-xs font-bold text-white">
+          ${sign}${curr} ${amt.toFixed(2)}
         </span>
-        <button onclick="editTransaction('${t.id}')" class="text-slate-500 hover:text-indigo-400 text-xs p-1"><i class="fa-solid fa-pen"></i></button>
         <button onclick="deleteTransaction('${t.id}')" class="text-slate-500 hover:text-rose-400 text-xs p-1"><i class="fa-solid fa-trash"></i></button>
       </div>
     </div>
   `;
 }
-
-// RESTORED EDIT FUNCTIONALITY
-window.editTransaction = function(id) {
-  const t = allTransactions.find(item => item.id == id);
-  if (!t) return;
-
-  document.getElementById('modal-trans-id').value = t.id;
-  document.getElementById('modal-trans-amount').value = t.amount;
-  document.getElementById('modal-trans-type').value = t.type || 'Expense';
-  
-  window.handleTypeChange(document.getElementById('modal-trans-type'));
-
-  if (t.type === 'Transfer') {
-    document.getElementById('modal-transfer-from').value = t.from_account || t.payment_method || 'Cash';
-    document.getElementById('modal-transfer-to').value = t.to_account || 'Al Rajhi';
-  } else {
-    document.getElementById('modal-trans-payment').value = t.payment_method || 'Cash';
-    document.getElementById('modal-trans-category').value = t.category || 'General';
-  }
-
-  if (t.created_at) {
-    const d = new Date(t.created_at);
-    document.getElementById('modal-trans-date').value = d.toISOString().split('T')[0];
-    document.getElementById('modal-trans-time').value = d.toTimeString().split(' ')[0].substring(0, 5);
-  }
-
-  document.getElementById('modal-title-text').innerText = 'Edit Record';
-  document.getElementById('trans-modal').classList.remove('hidden');
-};
 
 function renderAnalyticsChart(transactions) {
   const ctx = document.getElementById('expenseChart')?.getContext('2d');
@@ -304,7 +386,7 @@ function renderBudgets(transactions) {
       <div class="space-y-1">
         <div class="flex justify-between text-xs">
           <span class="font-semibold text-white">${cat} Limit</span>
-          <span class="text-slate-300">${userCurrency} ${spent.toFixed(2)} / ${limit.toFixed(2)}</span>
+          <span class="text-slate-300">SAR ${spent.toFixed(2)} / ${limit.toFixed(2)}</span>
         </div>
         <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
           <div class="h-full bg-indigo-500" style="width: ${percent}%"></div>
@@ -324,11 +406,15 @@ window.switchTab = function(tabName) {
   localStorage.setItem('spendly_active_tab', tabName);
   document.querySelectorAll('.tab-page').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.nav-btn').forEach(el => el.className = "nav-btn flex flex-col items-center gap-1 text-slate-400 font-semibold text-[10px]");
-  document.getElementById(`tab-${tabName}`)?.classList.remove('hidden');
-  document.getElementById(`nav-${tabName}`) && (document.getElementById(`nav-${tabName}`).className = "nav-btn flex flex-col items-center gap-1 text-indigo-400 font-semibold text-[10px]");
+  
+  const activeTab = document.getElementById(`tab-${tabName}`);
+  if (activeTab) activeTab.classList.remove('hidden');
+
+  const activeNav = document.getElementById(`nav-${tabName}`);
+  if (activeNav) activeNav.className = "nav-btn flex flex-col items-center gap-1 text-indigo-400 font-semibold text-[10px]";
 };
 
-window.openTransactionModal = () => {
+window.openTransactionModal = (presetType = null) => {
   document.getElementById('modal-trans-form').reset();
   document.getElementById('modal-trans-id').value = '';
   document.getElementById('modal-title-text').innerText = 'New Entry';
@@ -337,7 +423,16 @@ window.openTransactionModal = () => {
   document.getElementById('modal-trans-date').value = now.toISOString().split('T')[0];
   document.getElementById('modal-trans-time').value = now.toTimeString().split(' ')[0].substring(0, 5);
   
-  window.handleTypeChange(document.getElementById('modal-trans-type'));
+  const typeSelect = document.getElementById('modal-trans-type');
+
+  if (presetType === 'BD_LOCAL_EXPENSE') {
+    typeSelect.value = 'Expense';
+    document.getElementById('modal-trans-payment').value = 'IBBL';
+  } else if (presetType === 'OUTWARD_EXPENSE') {
+    typeSelect.value = 'Outward Expense';
+  }
+
+  window.handleTypeChange(typeSelect);
   document.getElementById('trans-modal').classList.remove('hidden');
 };
 
@@ -356,7 +451,6 @@ function bindEvents() {
 
   document.getElementById('modal-trans-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const id = document.getElementById('modal-trans-id').value;
     const amount = parseFloat(document.getElementById('modal-trans-amount').value);
     const dateVal = document.getElementById('modal-trans-date').value;
     const timeVal = document.getElementById('modal-trans-time').value;
@@ -369,10 +463,34 @@ function bindEvents() {
     let paymentVal = document.getElementById('modal-trans-payment').value;
     let fromAcc = null;
     let toAcc = null;
+    let fee = 0;
+    let exchangeRate = 0;
+    let convertedAmt = 0;
+    let incentiveAmt = 0;
 
-    if (typeVal === 'Transfer') {
+    if (typeVal === 'Internal Transfer') {
       fromAcc = document.getElementById('modal-transfer-from').value;
       toAcc = document.getElementById('modal-transfer-to').value;
+      paymentVal = fromAcc;
+
+    } else if (typeVal === 'International Transfer') {
+      fromAcc = document.getElementById('remit-sender-acc').value;
+      toAcc = document.getElementById('remit-receiver-acc').value;
+      fee = parseFloat(document.getElementById('remit-fee').value) || 0;
+      exchangeRate = parseFloat(document.getElementById('remit-exchange-rate').value) || 32.50;
+      
+      convertedAmt = amount * exchangeRate;
+      const addIncentive = document.getElementById('remit-incentive-toggle').checked;
+      if (addIncentive) incentiveAmt = convertedAmt * 0.025; // 2.5% incentive
+      
+      paymentVal = fromAcc;
+
+    } else if (typeVal === 'Outward Expense') {
+      fromAcc = document.getElementById('outward-from-acc').value;
+      toAcc = document.getElementById('outward-to-acc').value;
+      exchangeRate = parseFloat(document.getElementById('outward-exchange-rate').value) || 32.50;
+      
+      convertedAmt = exchangeRate > 0 ? (amount / exchangeRate) : 0;
       paymentVal = fromAcc;
     }
 
@@ -381,23 +499,23 @@ function bindEvents() {
 
     const payload = {
       user_id: currentUser ? currentUser.id : 'local_user',
-      title: categoryVal,
+      title: typeVal,
       amount,
       type: typeVal,
       category: categoryVal,
       payment_method: paymentVal,
       from_account: fromAcc,
       to_account: toAcc,
+      remit_fee: fee,
+      exchange_rate: exchangeRate,
+      converted_amount: convertedAmt,
+      incentive_amount: incentiveAmt,
       created_at: fullDateTime
     };
 
     if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
       try {
-        if (id) {
-          await dbClient.from('transactions').update(payload).eq('id', id);
-        } else {
-          await dbClient.from('transactions').insert([payload]);
-        }
+        await dbClient.from('transactions').insert([payload]);
       } catch (err) {
         console.error(err);
       }
