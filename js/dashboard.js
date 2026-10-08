@@ -27,6 +27,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentUser = { id: 'local_user', email: 'user@spendly.local' };
     }
 
+    // Load stored custom rate
+    const savedCustomRate = localStorage.getItem('spendly_bd_custom_rate');
+    if (savedCustomRate && document.getElementById('bd-custom-rate-input')) {
+      document.getElementById('bd-custom-rate-input').value = savedCustomRate;
+    }
+
     loadSavedBudgets();
     await loadTransactions();
 
@@ -67,15 +73,13 @@ async function loadTransactions() {
   if (document.getElementById('trans-count-badge')) document.getElementById('trans-count-badge').innerText = `${allTransactions.length} Items`;
 }
 
-// FULL MULTI-CURRENCY & LIVE BALANCE CALCULATOR
+// FULL BALANCE COMPUTATION & LIVE TRACKING
 function updateMetricsAndAccounts(transactions) {
   let ksaIncome = 0;
   let ksaExpense = 0;
   
   const accBalances = {
-    // Saudi SAR Accounts
     'Cash': 0, 'Al Rajhi': 0, 'SNB': 0, 'Barq': 0, 'Neo': 0, 'Enjaz': 0,
-    // BD BDT Accounts
     'IBBL': 0, 'MTB': 0, 'Midland': 0, 'BRAC': 0, 'EBL': 0, 'Pubali': 0
   };
 
@@ -99,45 +103,39 @@ function updateMetricsAndAccounts(transactions) {
     } else if (type === 'Internal Transfer') {
       const fromAcc = t.from_account || t.payment_method;
       const toAcc = t.to_account;
-      if (accBalances.hasOwnProperty(fromAcc)) accBalances[fromAcc] -= amt;
+      if (accBalances.hasOwnProperty(fromAcc)) accBalances[fromAcc] -= (amt + fee);
       if (accBalances.hasOwnProperty(toAcc)) accBalances[toAcc] += amt;
 
     } else if (type === 'International Transfer') {
-      // KSA -> BD Remittance
       const senderAcc = t.from_account;
       const receiverAcc = t.to_account;
 
-      // KSA Account loses amount + fee (in SAR)
       if (accBalances.hasOwnProperty(senderAcc)) accBalances[senderAcc] -= (amt + fee);
       if (KSA_ACCOUNTS.includes(senderAcc)) ksaExpense += (amt + fee);
 
-      // BD Account gains converted_amount + incentive (in BDT)
       const totalBdtGained = convertedAmt + incentive;
       if (accBalances.hasOwnProperty(receiverAcc)) accBalances[receiverAcc] += totalBdtGained;
 
     } else if (type === 'Outward Expense') {
-      // BD -> KSA Transfer
       const bdFromAcc = t.from_account;
       const ksaToAcc = t.to_account;
 
-      // BD Account loses BDT amount
-      if (accBalances.hasOwnProperty(bdFromAcc)) accBalances[bdFromAcc] -= amt;
-      
-      // KSA Account gains converted SAR amount
+      if (accBalances.hasOwnProperty(bdFromAcc)) accBalances[bdFromAcc] -= (amt + fee);
       if (accBalances.hasOwnProperty(ksaToAcc)) accBalances[ksaToAcc] += convertedAmt;
     }
   });
 
-  // Calculate Saudi Totals
   const cashTotal = accBalances['Cash'];
   let saudiBankTotal = 0;
   KSA_ACCOUNTS.forEach(acc => { if(acc !== 'Cash') saudiBankTotal += accBalances[acc]; });
   const ksaGrandTotal = cashTotal + saudiBankTotal;
 
-  // Calculate BD Totals
   let bdTotalWealthBDT = 0;
   BD_ACCOUNTS.forEach(acc => { bdTotalWealthBDT += accBalances[acc]; });
-  const bdWealthSAR = bdTotalWealthBDT > 0 ? (bdTotalWealthBDT / 32.50) : 0;
+
+  // Store Balances Globally for Validation Check & Preview
+  window.currentAccBalances = accBalances;
+  window.bdTotalWealthBDT = bdTotalWealthBDT;
 
   // Render KSA Hub Dashboard
   if (document.getElementById('total-balance')) document.getElementById('total-balance').innerText = `SAR ${ksaGrandTotal.toFixed(2)}`;
@@ -146,7 +144,7 @@ function updateMetricsAndAccounts(transactions) {
   if (document.getElementById('total-income')) document.getElementById('total-income').innerText = `+SAR ${ksaIncome.toFixed(2)}`;
   if (document.getElementById('total-expense')) document.getElementById('total-expense').innerText = `-SAR ${ksaExpense.toFixed(2)}`;
 
-  // Render KSA Bank Grid
+  // Render KSA Grid
   const bankGrid = document.getElementById('bank-accounts-grid');
   if (bankGrid) {
     bankGrid.innerHTML = KSA_ACCOUNTS.filter(b => b !== 'Cash').map(b => `
@@ -157,10 +155,11 @@ function updateMetricsAndAccounts(transactions) {
     `).join('');
   }
 
-  // Render BD Wealth Tab
+  // Render BD Wealth Tab Totals & Custom Conversion Rate Calculation
   if (document.getElementById('total-bd-wealth')) document.getElementById('total-bd-wealth').innerText = `BDT ${bdTotalWealthBDT.toFixed(2)}`;
-  if (document.getElementById('bd-wealth-sar-equivalent')) document.getElementById('bd-wealth-sar-equivalent').innerText = `≈ SAR ${bdWealthSAR.toFixed(2)}`;
+  updateBdWealthSarEquivalent();
 
+  // Render BD Bank Grid
   const bdBanksGrid = document.getElementById('bd-bank-accounts-grid');
   if (bdBanksGrid) {
     bdBanksGrid.innerHTML = BD_ACCOUNTS.map(b => `
@@ -170,12 +169,26 @@ function updateMetricsAndAccounts(transactions) {
       </div>
     `).join('');
   }
-
-  // Store globally for Live Balance Preview in Modal
-  window.currentAccBalances = accBalances;
 }
 
-// LIVE BALANCE PREVIEW IN MODAL FOR ANY SELECTED ACCOUNT
+// DYNAMIC CUSTOM RATE EQUIVALENT CALCULATOR
+window.updateBdWealthSarEquivalent = function() {
+  const customRateInput = document.getElementById('bd-custom-rate-input');
+  const displayEl = document.getElementById('bd-wealth-sar-equivalent');
+  if (!customRateInput || !displayEl) return;
+
+  const rate = parseFloat(customRateInput.value) || 0;
+  localStorage.setItem('spendly_bd_custom_rate', rate);
+
+  if (rate > 0 && window.bdTotalWealthBDT) {
+    const sarEquivalent = window.bdTotalWealthBDT / rate;
+    displayEl.innerText = `SAR ${sarEquivalent.toFixed(2)}`;
+  } else {
+    displayEl.innerText = `SAR 0.00`;
+  }
+};
+
+// DYNAMIC LIVE BALANCE PREVIEW IN MODAL
 window.updateModalBalancePreview = function() {
   const typeVal = document.getElementById('modal-trans-type').value;
   let selectedAcc = 'Cash';
@@ -194,7 +207,6 @@ window.updateModalBalancePreview = function() {
   const isBdAcc = BD_ACCOUNTS.includes(selectedAcc);
   const currCode = isBdAcc ? 'BDT' : 'SAR';
 
-  // Update Currency Symbol Label next to Amount
   const currLabel = document.getElementById('modal-currency-label');
   if (currLabel) currLabel.innerText = currCode;
 
@@ -214,7 +226,6 @@ window.handleTypeChange = function(selectEl) {
   const outwardContainer = document.getElementById('outward-fields-container');
   const catContainer = document.getElementById('category-container');
 
-  // Reset Visibility
   customContainer.classList.add('hidden');
   transferAccContainer.classList.add('hidden');
   standardAccContainer.classList.add('hidden');
@@ -266,18 +277,44 @@ function renderTodayDashboardList(transactions) {
   container.innerHTML = todayTrans.map(t => createItemHTML(t)).join('');
 }
 
+// WORKING TRANSACTION FILTERING & SORTING BY CURRENCY (SAR vs BDT)
 window.applyFiltersAndRender = function() {
   const container = document.getElementById('all-transactions-list');
   if (!container) return;
 
   let filtered = [...allTransactions];
   const searchQ = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+  const currencyFilter = document.getElementById('currency-filter')?.value || 'ALL';
+  const sortBy = document.getElementById('sort-by-select')?.value || 'newest';
   const fromDate = document.getElementById('filter-from-date')?.value;
   const toDate = document.getElementById('filter-to-date')?.value;
 
-  if (searchQ) filtered = filtered.filter(t => (t.category && t.category.toLowerCase().includes(searchQ)) || (t.payment_method && t.payment_method.toLowerCase().includes(searchQ)) || (t.type && t.type.toLowerCase().includes(searchQ)));
+  // Search Filter
+  if (searchQ) {
+    filtered = filtered.filter(t => 
+      (t.category && t.category.toLowerCase().includes(searchQ)) || 
+      (t.payment_method && t.payment_method.toLowerCase().includes(searchQ)) || 
+      (t.type && t.type.toLowerCase().includes(searchQ)) ||
+      (t.from_account && t.from_account.toLowerCase().includes(searchQ)) ||
+      (t.to_account && t.to_account.toLowerCase().includes(searchQ))
+    );
+  }
+
+  // Currency Specific Filter (SAR vs BDT)
+  if (currencyFilter === 'SAR') {
+    filtered = filtered.filter(t => KSA_ACCOUNTS.includes(t.payment_method) || KSA_ACCOUNTS.includes(t.from_account));
+  } else if (currencyFilter === 'BDT') {
+    filtered = filtered.filter(t => BD_ACCOUNTS.includes(t.payment_method) || BD_ACCOUNTS.includes(t.from_account) || BD_ACCOUNTS.includes(t.to_account));
+  }
+
+  // Date Filter
   if (fromDate) filtered = filtered.filter(t => (t.created_at ? t.created_at.split('T')[0] : '') >= fromDate);
   if (toDate) filtered = filtered.filter(t => (t.created_at ? t.created_at.split('T')[0] : '') <= toDate);
+
+  // Sorting
+  if (sortBy === 'newest') filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  else if (sortBy === 'oldest') filtered.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+  else if (sortBy === 'highest') filtered.sort((a, b) => (parseFloat(b.amount) || 0) - (parseFloat(a.amount) || 0));
 
   if (!filtered.length) {
     container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">No matching records found.</p>`;
@@ -289,8 +326,11 @@ window.applyFiltersAndRender = function() {
 function createItemHTML(t) {
   const type = t.type;
   const amt = parseFloat(t.amount) || 0;
-  const isBd = BD_ACCOUNTS.includes(t.payment_method) || BD_ACCOUNTS.includes(t.to_account);
+  const fee = parseFloat(t.remit_fee) || 0;
+  
+  const isBd = BD_ACCOUNTS.includes(t.payment_method) || BD_ACCOUNTS.includes(t.to_account) || BD_ACCOUNTS.includes(t.from_account);
   const curr = isBd ? 'BDT' : 'SAR';
+  const flag = isBd ? '🇧🇩' : '🇸🇦';
   
   let formattedTime = '';
   if (t.created_at) {
@@ -331,12 +371,15 @@ function createItemHTML(t) {
           <i class="fa-solid ${icon}"></i>
         </div>
         <div>
-          <h4 class="text-xs font-bold text-white">${title}</h4>
-          <span class="text-[10px] text-slate-500">${formattedTime}</span>
+          <h4 class="text-xs font-bold text-white flex items-center gap-1.5">
+            <span>${title}</span>
+            <span class="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300">${flag} ${curr}</span>
+          </h4>
+          <span class="text-[10px] text-slate-500">${formattedTime} ${fee > 0 ? `• Fee: ${fee.toFixed(2)}` : ''}</span>
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <span class="text-xs font-bold text-white">
+        <span class="text-xs font-bold ${type === 'Income' ? 'text-emerald-400' : 'text-white'}">
           ${sign}${curr} ${amt.toFixed(2)}
         </span>
         <button onclick="deleteTransaction('${t.id}')" class="text-slate-500 hover:text-rose-400 text-xs p-1"><i class="fa-solid fa-trash"></i></button>
@@ -468,10 +511,17 @@ function bindEvents() {
     let convertedAmt = 0;
     let incentiveAmt = 0;
 
+    // Determine Source Account & Total Amount Needed (including Fee)
+    let sourceAccount = paymentVal;
+    let totalRequired = amount;
+
     if (typeVal === 'Internal Transfer') {
       fromAcc = document.getElementById('modal-transfer-from').value;
       toAcc = document.getElementById('modal-transfer-to').value;
+      fee = parseFloat(document.getElementById('internal-transfer-fee').value) || 0;
       paymentVal = fromAcc;
+      sourceAccount = fromAcc;
+      totalRequired = amount + fee;
 
     } else if (typeVal === 'International Transfer') {
       fromAcc = document.getElementById('remit-sender-acc').value;
@@ -481,17 +531,35 @@ function bindEvents() {
       
       convertedAmt = amount * exchangeRate;
       const addIncentive = document.getElementById('remit-incentive-toggle').checked;
-      if (addIncentive) incentiveAmt = convertedAmt * 0.025; // 2.5% incentive
+      if (addIncentive) incentiveAmt = convertedAmt * 0.025;
       
       paymentVal = fromAcc;
+      sourceAccount = fromAcc;
+      totalRequired = amount + fee; // in SAR
 
     } else if (typeVal === 'Outward Expense') {
       fromAcc = document.getElementById('outward-from-acc').value;
       toAcc = document.getElementById('outward-to-acc').value;
+      fee = parseFloat(document.getElementById('outward-fee').value) || 0;
       exchangeRate = parseFloat(document.getElementById('outward-exchange-rate').value) || 32.50;
       
       convertedAmt = exchangeRate > 0 ? (amount / exchangeRate) : 0;
       paymentVal = fromAcc;
+      sourceAccount = fromAcc;
+      totalRequired = amount + fee; // in BDT
+
+    } else if (typeVal === 'Expense') {
+      sourceAccount = paymentVal;
+      totalRequired = amount;
+    }
+
+    // STRICT INSUFFICIENT BALANCE GUARD
+    if (typeVal !== 'Income') {
+      const availableBal = window.currentAccBalances ? (window.currentAccBalances[sourceAccount] || 0) : 0;
+      if (totalRequired > availableBal) {
+        alert(`❌ Insufficient Balance in ${sourceAccount}!\n\nAvailable Balance: ${availableBal.toFixed(2)}\nRequired Amount (with fee): ${totalRequired.toFixed(2)}`);
+        return; // STOP EXECUTION!
+      }
     }
 
     const categoryVal = document.getElementById('modal-trans-category').value;
