@@ -10,19 +10,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   checkPinLock();
   bindEvents();
 
+  // Listen for Internet Restoration to Auto-Sync
+  window.addEventListener('online', syncOfflineQueue);
+
   if (!dbClient) {
     alert("Database connection failed.");
     return;
   }
 
   try {
-    const { data: { user }, error } = await dbClient.auth.getUser();
-    if (error || !user) {
+    if (navigator.onLine) {
+      const { data: { user }, error } = await dbClient.auth.getUser();
+      if (user) {
+        currentUser = user;
+        localStorage.setItem('spendly_last_user', JSON.stringify(user));
+      }
+    } else {
+      // Offline fallback user session
+      const savedUser = localStorage.getItem('spendly_last_user');
+      if (savedUser) currentUser = JSON.parse(savedUser);
+    }
+
+    if (!currentUser) {
       window.location.href = 'index.html';
       return;
     }
-
-    currentUser = user;
 
     loadSavedBudgets();
     loadGoalsAndDebts();
@@ -40,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 function checkPinLock() {
   const pin = localStorage.getItem('spendly_app_pin');
   if (pin) {
-    document.getElementById('pin-screen').classList.remove('hidden');
+    document.getElementById('pin-screen')?.classList.remove('hidden');
   }
 }
 
@@ -74,19 +86,30 @@ window.togglePinLockSetting = function() {
 
 async function loadUserProfile() {
   try {
-    const { data } = await dbClient
-      .from('profiles')
-      .select('full_name, currency')
-      .eq('id', currentUser.id)
-      .maybeSingle();
+    if (navigator.onLine && dbClient && currentUser) {
+      const { data } = await dbClient
+        .from('profiles')
+        .select('full_name, currency')
+        .eq('id', currentUser.id)
+        .maybeSingle();
 
-    if (data && data.currency) userCurrency = data.currency;
+      if (data && data.currency) userCurrency = data.currency;
+      if (data) localStorage.setItem(`spendly_profile_${currentUser.id}`, JSON.stringify(data));
+    } else {
+      const cachedProf = localStorage.getItem(`spendly_profile_${currentUser ? currentUser.id : ''}`);
+      if (cachedProf) {
+        const p = JSON.parse(cachedProf);
+        if (p.currency) userCurrency = p.currency;
+      }
+    }
 
-    const name = (data && data.full_name) ? data.full_name : (currentUser.email ? currentUser.email.split('@')[0] : 'User');
+    const name = (currentUser && currentUser.user_metadata && currentUser.user_metadata.full_name) 
+      ? currentUser.user_metadata.full_name 
+      : (currentUser && currentUser.email ? currentUser.email.split('@')[0] : 'User');
 
     document.getElementById('user-avatar').innerText = name.charAt(0).toUpperCase();
     document.getElementById('profile-name-val').innerText = name;
-    document.getElementById('profile-email-val').innerText = currentUser.email || '';
+    document.getElementById('profile-email-val').innerText = currentUser ? currentUser.email : '';
     document.getElementById('currency-select').value = userCurrency;
   } catch (err) {
     console.error(err);
@@ -94,30 +117,92 @@ async function loadUserProfile() {
 }
 
 async function loadTransactions() {
-  try {
-    const { data, error } = await dbClient
-      .from('transactions')
-      .select('*')
-      .eq('user_id', currentUser.id)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
-    allTransactions = data || [];
-
-    renderDashboardList(allTransactions);
-    window.applyFiltersAndRender();
-    renderAnalyticsChart(allTransactions);
-    renderBudgets(allTransactions);
-    renderSavingsGoals();
-    renderDebtLoan();
-    updateMetrics(allTransactions);
-
-    document.getElementById('trans-count-badge').innerText = `${allTransactions.length} Items`;
-    document.getElementById('profile-trans-count').innerText = allTransactions.length;
-  } catch (err) {
-    console.error(err);
+  if (navigator.onLine) {
+    await syncOfflineQueue();
   }
+
+  try {
+    if (navigator.onLine && dbClient && currentUser) {
+      const { data, error } = await dbClient
+        .from('transactions')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        allTransactions = data;
+        localStorage.setItem(`spendly_cached_trans_${currentUser.id}`, JSON.stringify(data));
+      }
+    } else {
+      throw new Error("Offline mode");
+    }
+  } catch (err) {
+    const cached = localStorage.getItem(`spendly_cached_trans_${currentUser ? currentUser.id : ''}`);
+    if (cached) {
+      allTransactions = JSON.parse(cached);
+    }
+  }
+
+  renderDashboardList(allTransactions);
+  window.applyFiltersAndRender();
+  renderAnalyticsChart(allTransactions);
+  renderBudgets(allTransactions);
+  renderSavingsGoals();
+  renderDebtLoan();
+  updateMetrics(allTransactions);
+
+  document.getElementById('trans-count-badge').innerText = `${allTransactions.length} Items`;
+  document.getElementById('profile-trans-count').innerText = allTransactions.length;
+}
+
+// Auto Sync Offline Queue when back Online
+async function syncOfflineQueue() {
+  if (!navigator.onLine || !dbClient || !currentUser) return;
+  const key = `spendly_offline_queue_${currentUser.id}`;
+  const queue = JSON.parse(localStorage.getItem(key) || '[]');
+  if (queue.length === 0) return;
+
+  for (const item of queue) {
+    try {
+      if (item.action === 'insert') {
+        const { id, ...payload } = item.payload; // Remove temp offline id
+        await dbClient.from('transactions').insert([payload]);
+      } else if (item.action === 'update') {
+        await dbClient.from('transactions').update(item.payload).eq('id', item.id);
+      } else if (item.action === 'delete') {
+        await dbClient.from('transactions').delete().eq('id', item.id);
+      }
+    } catch (err) {
+      console.error("Queue Sync Error:", err);
+    }
+  }
+
+  localStorage.removeItem(key);
+  await loadTransactions();
+  alert("🟢 Internet connected! Offline transactions synced to cloud.");
+}
+
+function addToOfflineQueue(action, payload, id = null) {
+  if (!currentUser) return;
+  const key = `spendly_offline_queue_${currentUser.id}`;
+  const queue = JSON.parse(localStorage.getItem(key) || '[]');
+
+  if (action === 'insert') {
+    const tempId = 'temp_' + Date.now();
+    const newRecord = { ...payload, id: tempId };
+    allTransactions.unshift(newRecord);
+    queue.push({ action, payload: newRecord });
+  } else if (action === 'update') {
+    const idx = allTransactions.findIndex(t => t.id == id);
+    if (idx !== -1) allTransactions[idx] = { ...allTransactions[idx], ...payload };
+    queue.push({ action, payload, id });
+  } else if (action === 'delete') {
+    allTransactions = allTransactions.filter(t => t.id != id);
+    queue.push({ action, id });
+  }
+
+  localStorage.setItem(key, JSON.stringify(queue));
+  localStorage.setItem(`spendly_cached_trans_${currentUser.id}`, JSON.stringify(allTransactions));
 }
 
 function renderDashboardList(transactions) {
@@ -184,14 +269,13 @@ function createItemHTML(t) {
         <span class="text-xs font-bold ${isIncome ? 'text-emerald-400' : 'text-rose-400'}">
           ${isIncome ? '+' : '-'}${userCurrency} ${amt.toFixed(2)}
         </span>
-        <button onclick="editTransaction(${t.id})" class="text-slate-500 hover:text-indigo-400 text-xs"><i class="fa-solid fa-pen"></i></button>
-        <button onclick="deleteTransaction(${t.id})" class="text-slate-500 hover:text-rose-400 text-xs"><i class="fa-solid fa-trash"></i></button>
+        <button onclick="editTransaction('${t.id}')" class="text-slate-500 hover:text-indigo-400 text-xs"><i class="fa-solid fa-pen"></i></button>
+        <button onclick="deleteTransaction('${t.id}')" class="text-slate-500 hover:text-rose-400 text-xs"><i class="fa-solid fa-trash"></i></button>
       </div>
     </div>
   `;
 }
 
-// Chart.js Visual Donut Rendering
 function renderAnalyticsChart(transactions) {
   const ctx = document.getElementById('expenseChart')?.getContext('2d');
   if (!ctx) return;
@@ -265,7 +349,6 @@ function renderBudgets(transactions) {
   }).join('');
 }
 
-// Savings Goal Logic
 function renderSavingsGoals() {
   const container = document.getElementById('savings-goals-list');
   if (!container) return;
@@ -275,7 +358,7 @@ function renderSavingsGoals() {
     return;
   }
 
-  container.innerHTML = savingsGoals.map((g, idx) => {
+  container.innerHTML = savingsGoals.map((g) => {
     const percent = Math.min(((g.saved / g.target) * 100), 100).toFixed(1);
     return `
       <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
@@ -291,7 +374,6 @@ function renderSavingsGoals() {
   }).join('');
 }
 
-// Debt/Loan Logic
 function renderDebtLoan() {
   const container = document.getElementById('debt-loan-list');
   if (!container) return;
@@ -301,7 +383,7 @@ function renderDebtLoan() {
     return;
   }
 
-  container.innerHTML = debtRecords.map((d, idx) => {
+  container.innerHTML = debtRecords.map((d) => {
     const isLent = d.type === 'Lent';
     return `
       <div class="flex justify-between items-center p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs">
@@ -385,8 +467,9 @@ window.closeDebtModal = () => document.getElementById('debt-modal').classList.ad
 
 function bindEvents() {
   document.getElementById('logout-btn')?.addEventListener('click', async () => {
-    await dbClient.auth.signOut();
+    if (dbClient) await dbClient.auth.signOut();
     localStorage.removeItem('spendly_active_tab');
+    localStorage.removeItem('spendly_last_user');
     window.location.href = 'index.html';
   });
 
@@ -397,7 +480,9 @@ function bindEvents() {
 
   document.getElementById('currency-select')?.addEventListener('change', async (e) => {
     userCurrency = e.target.value;
-    await dbClient.from('profiles').update({ currency: userCurrency }).eq('id', currentUser.id);
+    if (navigator.onLine && dbClient && currentUser) {
+      await dbClient.from('profiles').update({ currency: userCurrency }).eq('id', currentUser.id);
+    }
     await loadTransactions();
   });
 
@@ -412,11 +497,20 @@ function bindEvents() {
     const category = document.getElementById('modal-trans-category').value;
 
     const recordDate = customDate ? new Date(customDate).toISOString() : new Date().toISOString();
+    const payload = { user_id: currentUser ? currentUser.id : 'offline', title, amount, type, category, payment_method: payment, created_at: recordDate };
 
-    if (id) {
-      await dbClient.from('transactions').update({ title, amount, type, category, payment_method: payment, created_at: recordDate }).eq('id', id);
+    if (navigator.onLine && dbClient && currentUser) {
+      try {
+        if (id) {
+          await dbClient.from('transactions').update({ title, amount, type, category, payment_method: payment, created_at: recordDate }).eq('id', id);
+        } else {
+          await dbClient.from('transactions').insert([payload]);
+        }
+      } catch (err) {
+        addToOfflineQueue(id ? 'update' : 'insert', payload, id);
+      }
     } else {
-      await dbClient.from('transactions').insert([{ user_id: currentUser.id, title, amount, type, category, payment_method: payment, created_at: recordDate }]);
+      addToOfflineQueue(id ? 'update' : 'insert', payload, id);
     }
 
     window.closeTransactionModal();
@@ -461,7 +555,7 @@ function bindEvents() {
 }
 
 window.editTransaction = function(id) {
-  const t = allTransactions.find(item => item.id === id);
+  const t = allTransactions.find(item => item.id == id);
   if (!t) return;
 
   document.getElementById('modal-trans-id').value = t.id;
@@ -477,7 +571,15 @@ window.editTransaction = function(id) {
 
 window.deleteTransaction = async function(id) {
   if (!confirm("Are you sure you want to delete this item?")) return;
-  await dbClient.from('transactions').delete().eq('id', id);
+  if (navigator.onLine && dbClient && currentUser) {
+    try {
+      await dbClient.from('transactions').delete().eq('id', id);
+    } catch (err) {
+      addToOfflineQueue('delete', null, id);
+    }
+  } else {
+    addToOfflineQueue('delete', null, id);
+  }
   await loadTransactions();
 };
 
