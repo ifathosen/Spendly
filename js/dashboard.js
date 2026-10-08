@@ -10,30 +10,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   checkPinLock();
   bindEvents();
 
-  // Listen for Internet Restoration to Auto-Sync
+  // Internet Restoration Event for Auto-Sync
   window.addEventListener('online', syncOfflineQueue);
 
-  if (!dbClient) {
-    alert("Database connection failed.");
-    return;
-  }
-
   try {
-    if (navigator.onLine) {
-      const { data: { user }, error } = await dbClient.auth.getUser();
-      if (user) {
-        currentUser = user;
-        localStorage.setItem('spendly_last_user', JSON.stringify(user));
+    if (typeof dbClient !== 'undefined' && dbClient) {
+      if (navigator.onLine) {
+        const { data: { user }, error } = await dbClient.auth.getUser();
+        if (user) {
+          currentUser = user;
+          localStorage.setItem('spendly_last_user', JSON.stringify(user));
+        }
+      } else {
+        const savedUser = localStorage.getItem('spendly_last_user');
+        if (savedUser) currentUser = JSON.parse(savedUser);
       }
     } else {
-      // Offline fallback user session
       const savedUser = localStorage.getItem('spendly_last_user');
       if (savedUser) currentUser = JSON.parse(savedUser);
     }
 
     if (!currentUser) {
-      window.location.href = 'index.html';
-      return;
+      // Fallback guest session for offline or dev use
+      currentUser = { id: 'local_user', email: 'user@spendly.local' };
     }
 
     loadSavedBudgets();
@@ -86,7 +85,7 @@ window.togglePinLockSetting = function() {
 
 async function loadUserProfile() {
   try {
-    if (navigator.onLine && dbClient && currentUser) {
+    if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
       const { data } = await dbClient
         .from('profiles')
         .select('full_name, currency')
@@ -107,10 +106,15 @@ async function loadUserProfile() {
       ? currentUser.user_metadata.full_name 
       : (currentUser && currentUser.email ? currentUser.email.split('@')[0] : 'User');
 
-    document.getElementById('user-avatar').innerText = name.charAt(0).toUpperCase();
-    document.getElementById('profile-name-val').innerText = name;
-    document.getElementById('profile-email-val').innerText = currentUser ? currentUser.email : '';
-    document.getElementById('currency-select').value = userCurrency;
+    const avatarEl = document.getElementById('user-avatar');
+    const nameEl = document.getElementById('profile-name-val');
+    const emailEl = document.getElementById('profile-email-val');
+    const currSelect = document.getElementById('currency-select');
+
+    if (avatarEl) avatarEl.innerText = name.charAt(0).toUpperCase();
+    if (nameEl) nameEl.innerText = name;
+    if (emailEl) emailEl.innerText = currentUser ? currentUser.email : '';
+    if (currSelect) currSelect.value = userCurrency;
   } catch (err) {
     console.error(err);
   }
@@ -121,8 +125,10 @@ async function loadTransactions() {
     await syncOfflineQueue();
   }
 
+  let fetchedFromCloud = false;
+
   try {
-    if (navigator.onLine && dbClient && currentUser) {
+    if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
       const { data, error } = await dbClient
         .from('transactions')
         .select('*')
@@ -132,12 +138,15 @@ async function loadTransactions() {
       if (!error && data) {
         allTransactions = data;
         localStorage.setItem(`spendly_cached_trans_${currentUser.id}`, JSON.stringify(data));
+        fetchedFromCloud = true;
       }
-    } else {
-      throw new Error("Offline mode");
     }
   } catch (err) {
-    const cached = localStorage.getItem(`spendly_cached_trans_${currentUser ? currentUser.id : ''}`);
+    console.error("Fetch Error:", err);
+  }
+
+  if (!fetchedFromCloud) {
+    const cached = localStorage.getItem(`spendly_cached_trans_${currentUser ? currentUser.id : 'local_user'}`);
     if (cached) {
       allTransactions = JSON.parse(cached);
     }
@@ -151,13 +160,15 @@ async function loadTransactions() {
   renderDebtLoan();
   updateMetrics(allTransactions);
 
-  document.getElementById('trans-count-badge').innerText = `${allTransactions.length} Items`;
-  document.getElementById('profile-trans-count').innerText = allTransactions.length;
+  const badge = document.getElementById('trans-count-badge');
+  const profileCount = document.getElementById('profile-trans-count');
+  if (badge) badge.innerText = `${allTransactions.length} Items`;
+  if (profileCount) profileCount.innerText = allTransactions.length;
 }
 
-// Auto Sync Offline Queue when back Online
+// Auto Sync Offline Queue
 async function syncOfflineQueue() {
-  if (!navigator.onLine || !dbClient || !currentUser) return;
+  if (!navigator.onLine || typeof dbClient === 'undefined' || !dbClient || !currentUser || currentUser.id === 'local_user') return;
   const key = `spendly_offline_queue_${currentUser.id}`;
   const queue = JSON.parse(localStorage.getItem(key) || '[]');
   if (queue.length === 0) return;
@@ -165,8 +176,8 @@ async function syncOfflineQueue() {
   for (const item of queue) {
     try {
       if (item.action === 'insert') {
-        const { id, ...payload } = item.payload; // Remove temp offline id
-        await dbClient.from('transactions').insert([payload]);
+        const { id, ...payload } = item.payload;
+        await dbClient.from('transactions').insert([{ ...payload, user_id: currentUser.id }]);
       } else if (item.action === 'update') {
         await dbClient.from('transactions').update(item.payload).eq('id', item.id);
       } else if (item.action === 'delete') {
@@ -178,13 +189,11 @@ async function syncOfflineQueue() {
   }
 
   localStorage.removeItem(key);
-  await loadTransactions();
-  alert("🟢 Internet connected! Offline transactions synced to cloud.");
 }
 
 function addToOfflineQueue(action, payload, id = null) {
-  if (!currentUser) return;
-  const key = `spendly_offline_queue_${currentUser.id}`;
+  const userId = currentUser ? currentUser.id : 'local_user';
+  const key = `spendly_offline_queue_${userId}`;
   const queue = JSON.parse(localStorage.getItem(key) || '[]');
 
   if (action === 'insert') {
@@ -202,7 +211,7 @@ function addToOfflineQueue(action, payload, id = null) {
   }
 
   localStorage.setItem(key, JSON.stringify(queue));
-  localStorage.setItem(`spendly_cached_trans_${currentUser.id}`, JSON.stringify(allTransactions));
+  localStorage.setItem(`spendly_cached_trans_${userId}`, JSON.stringify(allTransactions));
 }
 
 function renderDashboardList(transactions) {
@@ -251,7 +260,7 @@ window.applyFiltersAndRender = function() {
 function createItemHTML(t) {
   const isIncome = t.type === 'Income';
   const amt = parseFloat(t.amount) || 0;
-  const formattedDate = t.created_at ? new Date(t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+  const formattedDate = t.created_at ? new Date(t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
   const payMethod = t.payment_method ? ` • ${t.payment_method}` : '';
 
   return `
@@ -398,14 +407,14 @@ function renderDebtLoan() {
 }
 
 function loadGoalsAndDebts() {
-  if (!currentUser) return;
-  savingsGoals = JSON.parse(localStorage.getItem(`spendly_goals_${currentUser.id}`) || '[]');
-  debtRecords = JSON.parse(localStorage.getItem(`spendly_debts_${currentUser.id}`) || '[]');
+  const userId = currentUser ? currentUser.id : 'local_user';
+  savingsGoals = JSON.parse(localStorage.getItem(`spendly_goals_${userId}`) || '[]');
+  debtRecords = JSON.parse(localStorage.getItem(`spendly_debts_${userId}`) || '[]');
 }
 
 function loadSavedBudgets() {
-  if (!currentUser) return;
-  const saved = localStorage.getItem(`spendly_budgets_${currentUser.id}`);
+  const userId = currentUser ? currentUser.id : 'local_user';
+  const saved = localStorage.getItem(`spendly_budgets_${userId}`);
   if (saved) categoryBudgets = JSON.parse(saved);
 }
 
@@ -418,9 +427,13 @@ function updateMetrics(transactions) {
   });
 
   const balance = income - expense;
-  document.getElementById('total-balance').innerText = `${userCurrency} ${balance.toFixed(2)}`;
-  document.getElementById('total-income').innerText = `+${userCurrency} ${income.toFixed(2)}`;
-  document.getElementById('total-expense').innerText = `-${userCurrency} ${expense.toFixed(2)}`;
+  const balEl = document.getElementById('total-balance');
+  const incEl = document.getElementById('total-income');
+  const expEl = document.getElementById('total-expense');
+
+  if (balEl) balEl.innerText = `${userCurrency} ${balance.toFixed(2)}`;
+  if (incEl) incEl.innerText = `+${userCurrency} ${income.toFixed(2)}`;
+  if (expEl) expEl.innerText = `-${userCurrency} ${expense.toFixed(2)}`;
 }
 
 window.switchTab = function(tabName) {
@@ -467,7 +480,7 @@ window.closeDebtModal = () => document.getElementById('debt-modal').classList.ad
 
 function bindEvents() {
   document.getElementById('logout-btn')?.addEventListener('click', async () => {
-    if (dbClient) await dbClient.auth.signOut();
+    if (typeof dbClient !== 'undefined' && dbClient) await dbClient.auth.signOut();
     localStorage.removeItem('spendly_active_tab');
     localStorage.removeItem('spendly_last_user');
     window.location.href = 'index.html';
@@ -480,7 +493,7 @@ function bindEvents() {
 
   document.getElementById('currency-select')?.addEventListener('change', async (e) => {
     userCurrency = e.target.value;
-    if (navigator.onLine && dbClient && currentUser) {
+    if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
       await dbClient.from('profiles').update({ currency: userCurrency }).eq('id', currentUser.id);
     }
     await loadTransactions();
@@ -497,19 +510,32 @@ function bindEvents() {
     const category = document.getElementById('modal-trans-category').value;
 
     const recordDate = customDate ? new Date(customDate).toISOString() : new Date().toISOString();
-    const payload = { user_id: currentUser ? currentUser.id : 'offline', title, amount, type, category, payment_method: payment, created_at: recordDate };
+    const payload = { 
+      user_id: currentUser ? currentUser.id : 'local_user', 
+      title, 
+      amount, 
+      type, 
+      category, 
+      created_at: recordDate 
+    };
 
-    if (navigator.onLine && dbClient && currentUser) {
+    let isSavedOnline = false;
+
+    if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
       try {
-        if (id) {
-          await dbClient.from('transactions').update({ title, amount, type, category, payment_method: payment, created_at: recordDate }).eq('id', id);
+        if (id && !id.startsWith('temp_')) {
+          const { error } = await dbClient.from('transactions').update(payload).eq('id', id);
+          if (!error) isSavedOnline = true;
         } else {
-          await dbClient.from('transactions').insert([payload]);
+          const { error } = await dbClient.from('transactions').insert([payload]);
+          if (!error) isSavedOnline = true;
         }
       } catch (err) {
-        addToOfflineQueue(id ? 'update' : 'insert', payload, id);
+        console.error("Supabase Save Error:", err);
       }
-    } else {
+    }
+
+    if (!isSavedOnline) {
       addToOfflineQueue(id ? 'update' : 'insert', payload, id);
     }
 
@@ -519,36 +545,39 @@ function bindEvents() {
 
   document.getElementById('goal-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
+    const userId = currentUser ? currentUser.id : 'local_user';
     savingsGoals.push({
       title: document.getElementById('goal-title').value,
       target: parseFloat(document.getElementById('goal-target').value),
       saved: parseFloat(document.getElementById('goal-saved').value)
     });
-    localStorage.setItem(`spendly_goals_${currentUser.id}`, JSON.stringify(savingsGoals));
+    localStorage.setItem(`spendly_goals_${userId}`, JSON.stringify(savingsGoals));
     window.closeGoalModal();
     renderSavingsGoals();
   });
 
   document.getElementById('debt-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
+    const userId = currentUser ? currentUser.id : 'local_user';
     debtRecords.push({
       person: document.getElementById('debt-person').value,
       amount: parseFloat(document.getElementById('debt-amount').value),
       type: document.getElementById('debt-type').value
     });
-    localStorage.setItem(`spendly_debts_${currentUser.id}`, JSON.stringify(debtRecords));
+    localStorage.setItem(`spendly_debts_${userId}`, JSON.stringify(debtRecords));
     window.closeDebtModal();
     renderDebtLoan();
   });
 
   document.getElementById('budget-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
+    const userId = currentUser ? currentUser.id : 'local_user';
     categoryBudgets.Food = parseFloat(document.getElementById('budget-food').value) || 0;
     categoryBudgets.Rent = parseFloat(document.getElementById('budget-rent').value) || 0;
     categoryBudgets.Shopping = parseFloat(document.getElementById('budget-shopping').value) || 0;
     categoryBudgets.Bills = parseFloat(document.getElementById('budget-bills').value) || 0;
 
-    localStorage.setItem(`spendly_budgets_${currentUser.id}`, JSON.stringify(categoryBudgets));
+    localStorage.setItem(`spendly_budgets_${userId}`, JSON.stringify(categoryBudgets));
     window.closeBudgetModal();
     renderBudgets(allTransactions);
   });
@@ -571,23 +600,31 @@ window.editTransaction = function(id) {
 
 window.deleteTransaction = async function(id) {
   if (!confirm("Are you sure you want to delete this item?")) return;
-  if (navigator.onLine && dbClient && currentUser) {
+  
+  let deletedOnline = false;
+  if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
     try {
-      await dbClient.from('transactions').delete().eq('id', id);
+      if (!String(id).startsWith('temp_')) {
+        const { error } = await dbClient.from('transactions').delete().eq('id', id);
+        if (!error) deletedOnline = true;
+      }
     } catch (err) {
-      addToOfflineQueue('delete', null, id);
+      console.error("Delete online error:", err);
     }
-  } else {
+  }
+
+  if (!deletedOnline) {
     addToOfflineQueue('delete', null, id);
   }
+
   await loadTransactions();
 };
 
 window.exportTransactionsCSV = function() {
   if (!allTransactions.length) return alert("No data to export!");
-  let csv = 'Title,Amount,Type,Category,Payment,Date\n';
+  let csv = 'Title,Amount,Type,Category,Date\n';
   allTransactions.forEach(t => {
-    csv += `"${t.title}","${t.amount}","${t.type}","${t.category}","${t.payment_method || 'Cash'}","${t.created_at ? t.created_at.split('T')[0] : ''}"\n`;
+    csv += `"${t.title}","${t.amount}","${t.type}","${t.category}","${t.created_at ? t.created_at.split('T')[0] : ''}"\n`;
   });
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
