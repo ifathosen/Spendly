@@ -124,14 +124,14 @@ function updateMetricsAndAccounts(transactions) {
       const toAcc = t.to_account;
       if (accBalances.hasOwnProperty(fromAcc)) accBalances[fromAcc] -= (amt + fee);
       if (accBalances.hasOwnProperty(toAcc)) accBalances[toAcc] += amt;
-      if (KSA_ACCOUNTS.includes(fromAcc)) ksaPureExpense += fee; // Fee is pure expense
+      if (KSA_ACCOUNTS.includes(fromAcc)) ksaPureExpense += fee;
 
     } else if (type === 'International Transfer') {
       const senderAcc = t.from_account;
       const receiverAcc = t.to_account;
 
       if (accBalances.hasOwnProperty(senderAcc)) accBalances[senderAcc] -= (amt + fee);
-      if (KSA_ACCOUNTS.includes(senderAcc)) ksaPureExpense += fee; // Bank Fee is expense, not the remittance principal
+      if (KSA_ACCOUNTS.includes(senderAcc)) ksaPureExpense += fee;
 
       const totalBdtGained = convertedAmt + incentive;
       if (accBalances.hasOwnProperty(receiverAcc)) accBalances[receiverAcc] += totalBdtGained;
@@ -200,7 +200,7 @@ function renderArbitrageAndDailyMetrics(transactions) {
   let todayIncomeSAR = 0;
   let todayExpenseSAR = 0;
 
-  const currentRate = parseFloat(document.getElementById('bd-custom-rate-input')?.value) || 32.6868;
+  const currentRate = parseFloat(document.getElementById('bd-custom-rate-input')?.value) || parseFloat(localStorage.getItem('spendly_bd_custom_rate')) || 32.6868;
 
   transactions.forEach(t => {
     const amt = parseFloat(t.amount) || 0;
@@ -208,7 +208,6 @@ function renderArbitrageAndDailyMetrics(transactions) {
     const converted = parseFloat(t.converted_amount) || 0;
     const incentive = parseFloat(t.incentive_amount) || 0;
 
-    // 1. Remittance Arbitrage Calculations
     if (t.type === 'International Transfer') {
       totalSarSent += amt;
       totalBdtReceivedFromRemittance += (converted + incentive);
@@ -217,7 +216,6 @@ function renderArbitrageAndDailyMetrics(transactions) {
       totalSarReturnedToKsa += converted;
     }
 
-    // 2. Daily Metrics Calculation (Pure Income vs Pure Expense)
     if (isToday(t.created_at)) {
       if (t.type === 'Income') {
         todayIncomeSAR += amt;
@@ -230,11 +228,9 @@ function renderArbitrageAndDailyMetrics(transactions) {
     }
   });
 
-  // Net Profit in BDT = Total BDT gained from Remittances - Total BDT spent to buy SAR back
   const netProfitBDT = totalBdtReceivedFromRemittance - totalBdtSpentForOutward;
   const netProfitSAR = currentRate > 0 ? (netProfitBDT / currentRate) : 0;
 
-  // Render Arbitrage UI
   if (document.getElementById('arbitrage-sent-sar')) document.getElementById('arbitrage-sent-sar').innerText = `SAR ${totalSarSent.toFixed(2)}`;
   if (document.getElementById('arbitrage-rec-bdt')) document.getElementById('arbitrage-rec-bdt').innerText = `(BDT ${totalBdtReceivedFromRemittance.toFixed(2)})`;
   if (document.getElementById('arbitrage-returned-sar')) document.getElementById('arbitrage-returned-sar').innerText = `SAR ${totalSarReturnedToKsa.toFixed(2)}`;
@@ -243,7 +239,6 @@ function renderArbitrageAndDailyMetrics(transactions) {
   if (document.getElementById('arbitrage-profit-bdt')) document.getElementById('arbitrage-profit-bdt').innerText = `BDT ${netProfitBDT.toFixed(2)}`;
   if (document.getElementById('arbitrage-profit-sar')) document.getElementById('arbitrage-profit-sar').innerText = `SAR ${netProfitSAR.toFixed(2)}`;
 
-  // Render Daily Metrics UI
   if (document.getElementById('daily-pure-income-text')) document.getElementById('daily-pure-income-text').innerText = `SAR ${todayIncomeSAR.toFixed(2)}`;
   if (document.getElementById('daily-pure-expense-text')) document.getElementById('daily-pure-expense-text').innerText = `SAR ${todayExpenseSAR.toFixed(2)}`;
 }
@@ -275,18 +270,18 @@ function renderPendingReceivablesList(transactions) {
 
   container.innerHTML = pendingOutward.map(t => {
     const friendName = t.debtor_name || 'Friend';
-    const friendPhone = t.debtor_phone ? `(${t.debtor_phone})` : '';
     const bdtAmt = parseFloat(t.amount) || 0;
     const sarAmt = parseFloat(t.converted_amount) || 0;
 
     return `
       <div class="flex items-center justify-between p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs">
         <div>
-          <div class="font-bold text-white flex items-center gap-1.5">
-            <span>${friendName}</span>
+          <div class="font-bold text-white flex items-center gap-1.5 cursor-pointer hover:underline" onclick="openDebtorDetailModal('${t.id}')">
+            <span class="text-indigo-300 font-black">${friendName}</span>
+            <i class="fa-solid fa-circle-info text-[10px] text-indigo-400"></i>
             <span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 font-bold">বাকি (Pending)</span>
           </div>
-          <span class="text-[10px] text-slate-400 block">Outward BD: BDT ${bdtAmt.toFixed(2)} ${friendPhone}</span>
+          <span class="text-[10px] text-slate-400 block">Outward BD: BDT ${bdtAmt.toFixed(2)}</span>
         </div>
         <div class="flex items-center gap-2">
           <span class="font-bold text-emerald-400">SAR ${sarAmt.toFixed(2)}</span>
@@ -298,6 +293,36 @@ function renderPendingReceivablesList(transactions) {
     `;
   }).join('');
 }
+
+// DEBTOR DETAIL MODAL OPEN & CLOSE
+window.openDebtorDetailModal = function(transId) {
+  const t = allTransactions.find(item => item.id == transId);
+  if (!t) return;
+
+  const bdtAmt = parseFloat(t.amount) || 0;
+  const sarAmt = parseFloat(t.converted_amount) || 0;
+  const rate = parseFloat(t.exchange_rate) || 0;
+  const formattedDate = t.created_at ? new Date(t.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A';
+
+  document.getElementById('debtor-modal-name').innerText = t.debtor_name || 'Friend';
+  document.getElementById('debtor-modal-phone').innerText = t.debtor_phone || 'নম্বর দেওয়া নেই';
+  document.getElementById('debtor-modal-bdt').innerText = `BDT ${bdtAmt.toFixed(2)}`;
+  document.getElementById('debtor-modal-sar').innerText = `SAR ${sarAmt.toFixed(2)}`;
+  document.getElementById('debtor-modal-rate').innerText = `${rate.toFixed(4)}`;
+  document.getElementById('debtor-modal-date').innerText = formattedDate;
+
+  const collectBtn = document.getElementById('debtor-modal-collect-btn');
+  collectBtn.onclick = () => {
+    closeDebtorDetailModal();
+    openCollectModal(t.id, sarAmt);
+  };
+
+  document.getElementById('debtor-detail-modal').classList.remove('hidden');
+};
+
+window.closeDebtorDetailModal = function() {
+  document.getElementById('debtor-detail-modal').classList.add('hidden');
+};
 
 window.openCollectModal = function(transId, sarAmount) {
   document.getElementById('collect-trans-id').value = transId;
