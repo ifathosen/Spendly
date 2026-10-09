@@ -2,6 +2,7 @@ let currentUser = null;
 let allTransactions = [];
 let chartInstance = null;
 let categoryBudgets = { Food: 0, Rent: 0, Shopping: 0, Bills: 0, General: 0 };
+let pendingDeleteId = null;
 
 const KSA_ACCOUNTS = ['Cash', 'Al Rajhi', 'SNB', 'Barq', 'Neo', 'Enjaz'];
 const BD_ACCOUNTS = ['IBBL', 'MTB', 'Midland', 'BRAC', 'EBL', 'Pubali', 'bKash'];
@@ -50,6 +51,15 @@ function isCurrentCalendarMonth(dateString) {
   return tDate.getFullYear() === now.getFullYear() && tDate.getMonth() === now.getMonth();
 }
 
+function isToday(dateString) {
+  if (!dateString) return false;
+  const tDate = new Date(dateString);
+  const now = new Date();
+  return tDate.getFullYear() === now.getFullYear() &&
+         tDate.getMonth() === now.getMonth() &&
+         tDate.getDate() === now.getDate();
+}
+
 async function loadTransactions() {
   let cloudData = [];
   try {
@@ -77,13 +87,14 @@ async function loadTransactions() {
   renderBudgets(allTransactions);
   renderLoanGoalProgress(allTransactions);
   renderPendingReceivablesList(allTransactions);
+  renderArbitrageAndDailyMetrics(allTransactions);
   updateMetricsAndAccounts(allTransactions);
 }
 
 // STRICT BALANCE & METRICS CALCULATION
 function updateMetricsAndAccounts(transactions) {
-  let ksaIncome = 0;
-  let ksaExpense = 0;
+  let ksaPureIncome = 0;
+  let ksaPureExpense = 0;
   
   const accBalances = {
     'Cash': 0, 'Al Rajhi': 0, 'SNB': 0, 'Barq': 0, 'Neo': 0, 'Enjaz': 0,
@@ -101,25 +112,26 @@ function updateMetricsAndAccounts(transactions) {
     if (type === 'Income') {
       const acc = t.payment_method || 'Cash';
       if (accBalances.hasOwnProperty(acc)) accBalances[acc] += amt;
-      if (KSA_ACCOUNTS.includes(acc)) ksaIncome += amt;
+      if (KSA_ACCOUNTS.includes(acc)) ksaPureIncome += amt;
 
     } else if (type === 'Expense' || type === 'Loan Payment') {
       const acc = t.payment_method || 'Cash';
       if (accBalances.hasOwnProperty(acc)) accBalances[acc] -= amt;
-      if (KSA_ACCOUNTS.includes(acc)) ksaExpense += amt;
+      if (KSA_ACCOUNTS.includes(acc)) ksaPureExpense += amt;
 
     } else if (type === 'Internal Transfer') {
       const fromAcc = t.from_account || t.payment_method;
       const toAcc = t.to_account;
       if (accBalances.hasOwnProperty(fromAcc)) accBalances[fromAcc] -= (amt + fee);
       if (accBalances.hasOwnProperty(toAcc)) accBalances[toAcc] += amt;
+      if (KSA_ACCOUNTS.includes(fromAcc)) ksaPureExpense += fee; // Fee is pure expense
 
     } else if (type === 'International Transfer') {
       const senderAcc = t.from_account;
       const receiverAcc = t.to_account;
 
       if (accBalances.hasOwnProperty(senderAcc)) accBalances[senderAcc] -= (amt + fee);
-      if (KSA_ACCOUNTS.includes(senderAcc)) ksaExpense += (amt + fee);
+      if (KSA_ACCOUNTS.includes(senderAcc)) ksaPureExpense += fee; // Bank Fee is expense, not the remittance principal
 
       const totalBdtGained = convertedAmt + incentive;
       if (accBalances.hasOwnProperty(receiverAcc)) accBalances[receiverAcc] += totalBdtGained;
@@ -150,8 +162,8 @@ function updateMetricsAndAccounts(transactions) {
   if (document.getElementById('total-balance')) document.getElementById('total-balance').innerText = `SAR ${ksaGrandTotal.toFixed(2)}`;
   if (document.getElementById('dash-cash-total')) document.getElementById('dash-cash-total').innerText = `SAR ${cashTotal.toFixed(2)}`;
   if (document.getElementById('dash-bank-total')) document.getElementById('dash-bank-total').innerText = `SAR ${saudiBankTotal.toFixed(2)}`;
-  if (document.getElementById('total-income')) document.getElementById('total-income').innerText = `+SAR ${ksaIncome.toFixed(2)}`;
-  if (document.getElementById('total-expense')) document.getElementById('total-expense').innerText = `-SAR ${ksaExpense.toFixed(2)}`;
+  if (document.getElementById('total-income')) document.getElementById('total-income').innerText = `+SAR ${ksaPureIncome.toFixed(2)}`;
+  if (document.getElementById('total-expense')) document.getElementById('total-expense').innerText = `-SAR ${ksaPureExpense.toFixed(2)}`;
 
   const bankGrid = document.getElementById('bank-accounts-grid');
   if (bankGrid) {
@@ -175,6 +187,65 @@ function updateMetricsAndAccounts(transactions) {
       </div>
     `).join('');
   }
+}
+
+// RENDER ARBITRAGE & DAILY METRICS IN ANALYTICS TAB
+function renderArbitrageAndDailyMetrics(transactions) {
+  let totalSarSent = 0;
+  let totalBdtReceivedFromRemittance = 0;
+  
+  let totalBdtSpentForOutward = 0;
+  let totalSarReturnedToKsa = 0;
+
+  let todayIncomeSAR = 0;
+  let todayExpenseSAR = 0;
+
+  const currentRate = parseFloat(document.getElementById('bd-custom-rate-input')?.value) || 32.6868;
+
+  transactions.forEach(t => {
+    const amt = parseFloat(t.amount) || 0;
+    const fee = parseFloat(t.remit_fee) || 0;
+    const converted = parseFloat(t.converted_amount) || 0;
+    const incentive = parseFloat(t.incentive_amount) || 0;
+
+    // 1. Remittance Arbitrage Calculations
+    if (t.type === 'International Transfer') {
+      totalSarSent += amt;
+      totalBdtReceivedFromRemittance += (converted + incentive);
+    } else if (t.type === 'Outward Expense') {
+      totalBdtSpentForOutward += amt;
+      totalSarReturnedToKsa += converted;
+    }
+
+    // 2. Daily Metrics Calculation (Pure Income vs Pure Expense)
+    if (isToday(t.created_at)) {
+      if (t.type === 'Income') {
+        todayIncomeSAR += amt;
+      } else if (t.type === 'Expense' || t.type === 'Loan Payment') {
+        todayExpenseSAR += amt;
+      }
+      if (fee > 0) {
+        todayExpenseSAR += (KSA_ACCOUNTS.includes(t.from_account || t.payment_method) ? fee : (fee / currentRate));
+      }
+    }
+  });
+
+  // Net Profit in BDT = Total BDT gained from Remittances - Total BDT spent to buy SAR back
+  const netProfitBDT = totalBdtReceivedFromRemittance - totalBdtSpentForOutward;
+  const netProfitSAR = currentRate > 0 ? (netProfitBDT / currentRate) : 0;
+
+  // Render Arbitrage UI
+  if (document.getElementById('arbitrage-sent-sar')) document.getElementById('arbitrage-sent-sar').innerText = `SAR ${totalSarSent.toFixed(2)}`;
+  if (document.getElementById('arbitrage-rec-bdt')) document.getElementById('arbitrage-rec-bdt').innerText = `(BDT ${totalBdtReceivedFromRemittance.toFixed(2)})`;
+  if (document.getElementById('arbitrage-returned-sar')) document.getElementById('arbitrage-returned-sar').innerText = `SAR ${totalSarReturnedToKsa.toFixed(2)}`;
+  if (document.getElementById('arbitrage-spent-bdt')) document.getElementById('arbitrage-spent-bdt').innerText = `(BDT ${totalBdtSpentForOutward.toFixed(2)})`;
+
+  if (document.getElementById('arbitrage-profit-bdt')) document.getElementById('arbitrage-profit-bdt').innerText = `BDT ${netProfitBDT.toFixed(2)}`;
+  if (document.getElementById('arbitrage-profit-sar')) document.getElementById('arbitrage-profit-sar').innerText = `SAR ${netProfitSAR.toFixed(2)}`;
+
+  // Render Daily Metrics UI
+  if (document.getElementById('daily-pure-income-text')) document.getElementById('daily-pure-income-text').innerText = `SAR ${todayIncomeSAR.toFixed(2)}`;
+  if (document.getElementById('daily-pure-expense-text')) document.getElementById('daily-pure-expense-text').innerText = `SAR ${todayExpenseSAR.toFixed(2)}`;
 }
 
 function renderPendingReceivablesList(transactions) {
@@ -253,6 +324,8 @@ window.updateBdWealthSarEquivalent = function() {
   } else {
     displayEl.innerText = `SAR 0.00`;
   }
+  
+  renderArbitrageAndDailyMetrics(allTransactions);
 };
 
 window.updateModalBalancePreview = function() {
@@ -333,8 +406,7 @@ function renderTodayDashboardList(transactions) {
   const container = document.getElementById('dashboard-recent-list');
   if (!container) return;
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayTrans = transactions.filter(t => t.created_at && t.created_at.split('T')[0] === todayStr);
+  const todayTrans = transactions.filter(t => isToday(t.created_at));
 
   if (!todayTrans.length) {
     container.innerHTML = `<p class="text-xs text-slate-500 py-3 text-center">No transactions recorded today.</p>`;
@@ -535,7 +607,7 @@ function createItemHTML(t) {
           ${sign}${displayValue}
         </span>
         <button onclick="editTransaction('${t.id}')" class="text-slate-500 hover:text-indigo-400 text-xs p-1"><i class="fa-solid fa-pen"></i></button>
-        <button onclick="deleteTransaction('${t.id}')" class="text-slate-500 hover:text-rose-400 text-xs p-1"><i class="fa-solid fa-trash"></i></button>
+        <button onclick="openDeleteModal('${t.id}')" class="text-slate-500 hover:text-rose-400 text-xs p-1"><i class="fa-solid fa-trash"></i></button>
       </div>
     </div>
   `;
@@ -559,12 +631,12 @@ window.editTransaction = function(id) {
     document.getElementById('remit-sender-acc').value = t.from_account || 'Al Rajhi';
     document.getElementById('remit-receiver-acc').value = t.to_account || 'IBBL';
     document.getElementById('remit-fee').value = t.remit_fee || 0;
-    document.getElementById('remit-exchange-rate').value = t.exchange_rate || 32.50;
+    document.getElementById('remit-exchange-rate').value = t.exchange_rate || 32.6868;
   } else if (t.type === 'Outward Expense') {
     document.getElementById('outward-from-acc').value = t.from_account || 'IBBL';
     document.getElementById('outward-to-acc').value = t.to_account || 'Cash';
     document.getElementById('outward-fee').value = t.remit_fee || 0;
-    document.getElementById('outward-exchange-rate').value = t.exchange_rate || 32.50;
+    document.getElementById('outward-exchange-rate').value = t.exchange_rate || 33.0000;
     document.getElementById('outward-payment-status').value = t.due_status || 'INSTANT';
     
     if (typeof window.toggleOutwardCreditFields === 'function') {
@@ -665,7 +737,7 @@ function renderLoanGoalProgress(transactions) {
     if (t.type === 'Loan Payment' || t.category === 'Loan Repayment') {
       const amt = parseFloat(t.amount) || 0;
       const isBd = BD_ACCOUNTS.includes(t.payment_method) || BD_ACCOUNTS.includes(t.to_account);
-      totalLoanPaidBDT += isBd ? amt : (amt * 32.50);
+      totalLoanPaidBDT += isBd ? amt : (amt * 32.6868);
     }
   });
 
@@ -730,6 +802,17 @@ window.openBudgetModal = () => {
 };
 window.closeBudgetModal = () => document.getElementById('budget-modal').classList.add('hidden');
 
+// SPENDLY CUSTOM DELETE POPUP LOGIC
+window.openDeleteModal = function(id) {
+  pendingDeleteId = id;
+  document.getElementById('delete-confirm-modal').classList.remove('hidden');
+};
+
+window.closeDeleteModal = function() {
+  pendingDeleteId = null;
+  document.getElementById('delete-confirm-modal').classList.add('hidden');
+};
+
 function bindEvents() {
   document.getElementById('logout-btn')?.addEventListener('click', async () => {
     if (typeof dbClient !== 'undefined' && dbClient) await dbClient.auth.signOut();
@@ -738,6 +821,22 @@ function bindEvents() {
   });
 
   document.getElementById('search-input')?.addEventListener('input', window.applyFiltersAndRender);
+
+  // CONFIRM DELETE
+  document.getElementById('confirm-delete-btn')?.addEventListener('click', async () => {
+    if (!pendingDeleteId) return;
+    const idToDelete = pendingDeleteId;
+    window.closeDeleteModal();
+
+    if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
+      try {
+        await dbClient.from('transactions').delete().eq('id', idToDelete);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    await loadTransactions();
+  });
 
   // SUBMIT COLLECT SAR FORM
   document.getElementById('collect-form')?.addEventListener('submit', async (e) => {
@@ -801,7 +900,7 @@ function bindEvents() {
       fromAcc = document.getElementById('remit-sender-acc').value;
       toAcc = document.getElementById('remit-receiver-acc').value;
       fee = parseFloat(document.getElementById('remit-fee').value) || 0;
-      exchangeRate = parseFloat(document.getElementById('remit-exchange-rate').value) || 32.50;
+      exchangeRate = parseFloat(document.getElementById('remit-exchange-rate').value) || 32.6868;
       
       convertedAmt = amount * exchangeRate;
       const addIncentive = document.getElementById('remit-incentive-toggle').checked;
@@ -815,7 +914,7 @@ function bindEvents() {
       fromAcc = document.getElementById('outward-from-acc').value;
       toAcc = document.getElementById('outward-to-acc').value;
       fee = parseFloat(document.getElementById('outward-fee').value) || 0;
-      exchangeRate = parseFloat(document.getElementById('outward-exchange-rate').value) || 32.50;
+      exchangeRate = parseFloat(document.getElementById('outward-exchange-rate').value) || 33.0000;
       
       convertedAmt = exchangeRate > 0 ? (amount / exchangeRate) : 0;
       paymentVal = fromAcc;
@@ -908,15 +1007,3 @@ function bindEvents() {
     renderBudgets(allTransactions);
   });
 }
-
-window.deleteTransaction = async function(id) {
-  if (!confirm("Delete this record?")) return;
-  if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
-    try {
-      await dbClient.from('transactions').delete().eq('id', id);
-    } catch (e) {
-      console.error(e);
-    }
-  }
-  await loadTransactions();
-};
