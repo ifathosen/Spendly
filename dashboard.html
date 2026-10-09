@@ -633,17 +633,36 @@
     </div>
   </div>
 
-  <!-- COLLECT SAR MODAL -->
+    <!-- COLLECT SAR MODAL (WITH PARTIAL PAYMENT) -->
   <div id="collect-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-3">
       <button onclick="closeCollectModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-      <h3 class="text-xs font-black uppercase tracking-wider text-emerald-400 mb-2">Receive Pending Money (টাকা পেলাম)</h3>
-      <p class="text-[11px] text-slate-400 mb-3" id="collect-modal-subtitle">টাকাটি কোন অ্যাকাউন্টে গ্রহণ করেছেন?</p>
+      <h3 class="text-xs font-black uppercase tracking-wider text-emerald-400">Receive Pending Money (আংশিক / পূর্ণ আদায়)</h3>
+      <p class="text-[11px] text-slate-400" id="collect-modal-subtitle">টাকা আদায় বিবরণী</p>
 
       <form id="collect-form" class="space-y-3">
         <input type="hidden" id="collect-trans-id" value="">
-        <input type="hidden" id="collect-sar-amount" value="0">
+        <input type="hidden" id="collect-total-pending-sar" value="0">
 
+        <!-- Pending Summary Box -->
+        <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs space-y-1">
+          <div class="flex justify-between text-slate-400">
+            <span>মোট বাকি পাওনা:</span>
+            <span id="collect-total-pending-text" class="font-bold text-amber-400">SAR 0.00</span>
+          </div>
+          <div class="flex justify-between text-slate-400">
+            <span>আদায়ের পর অবশিষ্টাংশ:</span>
+            <span id="collect-remaining-preview-text" class="font-bold text-slate-300">SAR 0.00</span>
+          </div>
+        </div>
+
+        <!-- Amount Input -->
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Received Amount (SAR)</label>
+          <input type="number" step="0.01" id="collect-amount-input" required oninput="updateCollectRemainingPreview()" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm font-bold text-emerald-400 focus:outline-none focus:border-emerald-500" placeholder="0.00">
+        </div>
+
+        <!-- Target KSA Account -->
         <div>
           <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Received In (KSA Account)</label>
           <select id="collect-target-acc" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white font-bold">
@@ -656,10 +675,11 @@
           </select>
         </div>
 
-        <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg">Confirm & Add to Balance</button>
+        <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg transition">Confirm & Add to Balance</button>
       </form>
     </div>
   </div>
+
 
   <!-- BUDGET MODAL -->
   <div id="budget-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
@@ -672,6 +692,21 @@
         <input type="number" id="budget-shopping" placeholder="Shopping Limit (SAR)" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
         <button type="submit" class="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs" data-i18n="saveBtn">Save Budget</button>
       </form>
+    </div>
+  </div>
+  <!-- DEBTOR HISTORY POPUP MODAL -->
+  <div id="debtor-history-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-indigo-500/30 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-3 max-h-[85vh] flex flex-col">
+      <button onclick="closeDebtorHistoryModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+
+      <div>
+        <h3 id="debtor-history-name" class="text-sm font-black text-indigo-400">Debtor History</h3>
+        <p class="text-[11px] text-slate-400">ধার প্রদান ও টাকা আদায়ে তারিখসহ সময়রেখা</p>
+      </div>
+
+      <div id="debtor-history-list" class="space-y-2 overflow-y-auto pr-1 flex-1 pt-2"></div>
+
+      <button onclick="closeDebtorHistoryModal()" class="w-full py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs" data-i18n="closeBtn">বন্ধ করুন</button>
     </div>
   </div>
 
