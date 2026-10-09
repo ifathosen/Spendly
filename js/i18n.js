@@ -24,35 +24,24 @@ const translations = {
     returnedSar: "ফেরত আনা রিয়াল",
     netTradingProfit: "নিট ট্রেডিং লাভ",
     loanGoalTitle: "মাসিক লোন পরিশোধ লক্ষ্য",
-    loanGoalSub: "মিডল্যান্ড ব্যাংকে জমাকৃত টাকা",
-    receivablesPayables: "পাওনা ও দেনার হিসাব",
-    totalPendingSar: "মোট পাওনা রিয়াল",
-    equivalentBdt: "সমতুল্য টাকা",
+    receivablesPayables: "পাওনা ও দেনার হিসাব (ধার-দেনা)",
+    totalPendingSar: "মোট পাওনা (Pending SAR)",
+    equivalentBdt: "সমতুল্য টাকা (BDT)",
     expenseDistribution: "চলতি মাসের খরচ বণ্টন",
     monthlyBudgets: "চলতি মাসের বাজেট",
     bdWealthTitle: "বাংলাদেশে মোট সম্পদ (BDT)",
     customRateLabel: "কাস্টম এক্সচেঞ্জ রেট (১ SAR = ? BDT):",
     sarEquivValue: "সমতুল্য রিয়াল মান:",
     bdAccountsTitle: "বাংলাদেশের ব্যাংক ও ওয়ালেট",
-    bdLocalExpenseBtn: "বাংলাদেশে স্থানীয় খরচ রেকর্ড",
+    bdLocalExpenseBtn: "বাংলাদেশে স্থানীয় খরচ রেকর্ড (Local BD)",
     outwardBtn: "আউটওয়ার্ড ট্রান্সফার (BD ➔ KSA)",
-    bankStatementTitle: "ব্যাংক স্টেটমেন্ট",
+    bankStatementTitle: "ব্যাংক ভিত্তিক লেনদেন বিবরণী",
     totalIn: "মোট ইন (জমা)",
     totalOut: "মোট আউট (খরচ)",
-    netChange: "নিট পরিবর্তন",
     closeBtn: "বন্ধ করুন",
     saveBtn: "সংরক্ষণ করুন",
-    filterBtn: "ফিল্টার করুন",
     newEntry: "নতুন এন্ট্রি",
-    editRecord: "এন্ট্রি সম্পাদনা",
-    availableBal: "অবশিষ্ট ব্যালেন্স:",
-    amount: "পরিমাণ",
-    account: "অ্যাঙ্কউন্ট",
-    type: "ধরণ",
-    category: "ক্যাটাগরি",
-    date: "তারিখ",
-    time: "সময়",
-    noData: "কোন তথ্য পাওয়া যায়নি।"
+    availableBal: "অবশিষ্ট ব্যালেন্স:"
   },
   en: {
     appName: "Spendly Pro",
@@ -79,7 +68,6 @@ const translations = {
     returnedSar: "Returned SAR",
     netTradingProfit: "Net Trading Profit",
     loanGoalTitle: "Monthly Loan Repayment Goal",
-    loanGoalSub: "Tracked via Midland Bank",
     receivablesPayables: "Receivables & Payables",
     totalPendingSar: "Total Pending SAR",
     equivalentBdt: "Equivalent BDT",
@@ -91,23 +79,13 @@ const translations = {
     bdAccountsTitle: "BD Bank & Wallet Accounts",
     bdLocalExpenseBtn: "Record Local BD Expense",
     outwardBtn: "Outward Transfer (BD ➔ KSA)",
-    bankStatementTitle: "Bank Statement",
+    bankStatementTitle: "Bank Transaction Statement",
     totalIn: "Total IN (Credits)",
     totalOut: "Total OUT (Debits)",
-    netChange: "Net Change",
     closeBtn: "Close",
     saveBtn: "Save",
-    filterBtn: "Filter",
     newEntry: "New Entry",
-    editRecord: "Edit Record",
-    availableBal: "Available Balance:",
-    amount: "Amount",
-    account: "Account",
-    type: "Type",
-    category: "Category",
-    date: "Date",
-    time: "Time",
-    noData: "No records found."
+    availableBal: "Available Balance:"
   }
 };
 
@@ -133,7 +111,7 @@ function applyTranslations() {
 
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
-    if (langData[key]) {
+    if (langData && langData[key]) {
       if (el.tagName === 'INPUT' && el.placeholder) {
         el.placeholder = langData[key];
       } else {
