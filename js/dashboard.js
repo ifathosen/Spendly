@@ -309,7 +309,6 @@ window.applyFiltersAndRender = function() {
   container.innerHTML = filtered.map(t => createItemHTML(t)).join('');
 };
 
-// FULL DUAL-CURRENCY DISPLAY & EDIT BUTTON RESTORED
 function createItemHTML(t) {
   const type = t.type;
   const amt = parseFloat(t.amount) || 0;
@@ -343,7 +342,6 @@ function createItemHTML(t) {
     icon = 'fa-right-left';
     sign = '';
   } else if (type === 'International Transfer') {
-    // KSA -> BD (Dual Amount Display)
     title = `Remit: ${t.from_account} ➔ ${t.to_account}`;
     const totalBdtReceived = convertedAmt + incentive;
     displayValue = `SAR ${amt.toFixed(2)} ➔ BDT ${totalBdtReceived.toFixed(2)}`;
@@ -351,7 +349,6 @@ function createItemHTML(t) {
     icon = 'fa-paper-plane';
     sign = '';
   } else if (type === 'Outward Expense') {
-    // BD -> KSA (Dual Amount Display)
     title = `Outward: ${t.from_account} ➔ ${t.to_account}`;
     displayValue = `BDT ${amt.toFixed(2)} ➔ SAR ${convertedAmt.toFixed(2)}`;
     badgeColor = 'bg-rose-500/10 text-rose-400';
@@ -377,7 +374,6 @@ function createItemHTML(t) {
         <span class="text-xs font-bold ${type === 'Income' ? 'text-emerald-400' : 'text-white'}">
           ${sign}${displayValue}
         </span>
-        <!-- EDIT BUTTON RESTORED -->
         <button onclick="editTransaction('${t.id}')" class="text-slate-500 hover:text-indigo-400 text-xs p-1"><i class="fa-solid fa-pen"></i></button>
         <button onclick="deleteTransaction('${t.id}')" class="text-slate-500 hover:text-rose-400 text-xs p-1"><i class="fa-solid fa-trash"></i></button>
       </div>
@@ -385,7 +381,6 @@ function createItemHTML(t) {
   `;
 }
 
-// RESTORED EDIT TRANSACTION LOGIC
 window.editTransaction = function(id) {
   const t = allTransactions.find(item => item.id == id);
   if (!t) return;
@@ -445,7 +440,6 @@ function renderAnalyticsChart(transactions) {
   });
 }
 
-// REDESIGNED & PROPERLY LABELED BUDGET PROGRESS BARS WITH EXACT OVER-PERCENTAGE
 function renderBudgets(transactions) {
   const container = document.getElementById('budget-tracker-list');
   if (!container) return;
@@ -612,9 +606,25 @@ function bindEvents() {
       totalRequired = amount;
     }
 
-    // INSUFFICIENT BALANCE GUARD
+    // STRICT INSUFFICIENT BALANCE GUARD (FIXED FOR EDIT MODE)
     if (typeVal !== 'Income') {
-      const availableBal = window.currentAccBalances ? (window.currentAccBalances[sourceAccount] || 0) : 0;
+      let availableBal = window.currentAccBalances ? (window.currentAccBalances[sourceAccount] || 0) : 0;
+
+      // If EDITING an existing record, refund the previous deduction to check valid new limit!
+      if (id) {
+        const oldRecord = allTransactions.find(t => t.id == id);
+        if (oldRecord) {
+          let oldSource = oldRecord.from_account || oldRecord.payment_method;
+          let oldAmt = parseFloat(oldRecord.amount) || 0;
+          let oldFee = parseFloat(oldRecord.remit_fee) || 0;
+          let oldTotalDeducted = oldAmt + oldFee;
+
+          if (oldSource === sourceAccount) {
+            availableBal += oldTotalDeducted; // Add back old transaction deduction
+          }
+        }
+      }
+
       if (totalRequired > availableBal) {
         alert(`❌ Insufficient Balance in ${sourceAccount}!\n\nAvailable Balance: ${availableBal.toFixed(2)}\nRequired Amount (with fee): ${totalRequired.toFixed(2)}`);
         return;
