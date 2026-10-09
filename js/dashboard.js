@@ -1,6 +1,5 @@
 let currentUser = null;
 let allTransactions = [];
-let allDebts = [];
 let chartInstance = null;
 let categoryBudgets = { Food: 0, Rent: 0, Shopping: 0, Bills: 0, General: 0 };
 
@@ -36,7 +35,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     loadSavedBudgets();
     await loadTransactions();
-    await loadDebts();
 
     const savedTab = localStorage.getItem('spendly_active_tab') || 'dashboard';
     window.switchTab(savedTab);
@@ -45,7 +43,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// CALENDAR MONTH HELPER (1ST TO END OF MONTH)
 function isCurrentCalendarMonth(dateString) {
   if (!dateString) return false;
   const tDate = new Date(dateString);
@@ -79,126 +76,11 @@ async function loadTransactions() {
   renderAnalyticsChart(allTransactions);
   renderBudgets(allTransactions);
   renderLoanGoalProgress(allTransactions);
+  renderPendingReceivablesList(allTransactions);
   updateMetricsAndAccounts(allTransactions);
 }
 
-// LOAD & RENDER UDHAR / DEBTS
-async function loadDebts() {
-  let cloudDebts = [];
-  try {
-    if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
-      const { data, error } = await dbClient.from('debts').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
-      if (!error && data) {
-        cloudDebts = data;
-        localStorage.setItem(`spendly_cached_debts_${currentUser.id}`, JSON.stringify(data));
-      }
-    }
-  } catch (e) {
-    console.error(e);
-  }
-
-  if (cloudDebts.length === 0) {
-    const cached = localStorage.getItem(`spendly_cached_debts_${currentUser ? currentUser.id : 'local_user'}`);
-    allDebts = cached ? JSON.parse(cached) : [];
-  } else {
-    allDebts = cloudDebts;
-  }
-
-  renderDebtsList();
-}
-
-function renderDebtsList() {
-  const container = document.getElementById('debts-list-container');
-  const receivableEl = document.getElementById('total-receivable-text');
-  const payableEl = document.getElementById('total-payable-text');
-
-  let totalReceivableBDT = 0;
-  let totalPayableBDT = 0;
-
-  const pendingDebts = allDebts.filter(d => d.status === 'PENDING');
-
-  pendingDebts.forEach(d => {
-    const amt = parseFloat(d.amount) || 0;
-    if (d.type === 'GIVEN') {
-      totalReceivableBDT += d.currency === 'SAR' ? (amt * 32.50) : amt;
-    } else {
-      totalPayableBDT += d.currency === 'SAR' ? (amt * 32.50) : amt;
-    }
-  });
-
-  if (receivableEl) receivableEl.innerText = `BDT ${totalReceivableBDT.toFixed(2)}`;
-  if (payableEl) payableEl.innerText = `BDT ${totalPayableBDT.toFixed(2)}`;
-
-  if (!container) return;
-
-  if (!pendingDebts.length) {
-    container.innerHTML = `<p class="text-xs text-slate-500 py-2 text-center">No pending udhar or debt records.</p>`;
-    return;
-  }
-
-  container.innerHTML = pendingDebts.map(d => {
-    const isGiven = d.type === 'GIVEN';
-    const amt = parseFloat(d.amount) || 0;
-    return `
-      <div class="flex items-center justify-between p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs">
-        <div>
-          <div class="font-bold text-white flex items-center gap-1.5">
-            <span>${d.person_name}</span>
-            <span class="text-[9px] px-1.5 py-0.2 rounded ${isGiven ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">${isGiven ? 'পাওনা' : 'দেনা'}</span>
-          </div>
-          <span class="text-[10px] text-slate-400 block">${d.note || 'No note'}</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="font-bold ${isGiven ? 'text-emerald-400' : 'text-rose-400'}">
-            ${d.currency} ${amt.toFixed(2)}
-          </span>
-          <button onclick="settleDebt('${d.id}')" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-bold">
-            Settled
-          </button>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-window.settleDebt = async function(id) {
-  if (!confirm("Mark this record as paid / settled?")) return;
-
-  if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
-    try {
-      await dbClient.from('debts').update({ status: 'PAID' }).eq('id', id);
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  await loadDebts();
-};
-
-// LOAN GOAL CALCULATOR (35,000 BDT DUE 1ST MONTHLY)
-function renderLoanGoalProgress(transactions) {
-  const currentMonthTrans = transactions.filter(t => isCurrentCalendarMonth(t.created_at));
-  
-  let totalLoanPaidBDT = 0;
-  currentMonthTrans.forEach(t => {
-    if (t.type === 'Loan Payment' || t.category === 'Loan Repayment') {
-      const amt = parseFloat(t.amount) || 0;
-      const isBd = BD_ACCOUNTS.includes(t.payment_method) || BD_ACCOUNTS.includes(t.to_account);
-      totalLoanPaidBDT += isBd ? amt : (amt * 32.50);
-    }
-  });
-
-  const percent = Math.min(((totalLoanPaidBDT / MONTHLY_LOAN_GOAL_BDT) * 100), 100).toFixed(1);
-
-  const paidEl = document.getElementById('loan-paid-amount');
-  const barEl = document.getElementById('loan-goal-progress-bar');
-  const statusEl = document.getElementById('loan-goal-status-text');
-
-  if (paidEl) paidEl.innerText = `BDT ${totalLoanPaidBDT.toFixed(2)}`;
-  if (barEl) barEl.style.width = `${percent}%`;
-  if (statusEl) statusEl.innerText = `${percent}% Paid for this calendar month`;
-}
-
+// UPDATE ACCOUNTS & NET BALANCES
 function updateMetricsAndAccounts(transactions) {
   let ksaIncome = 0;
   let ksaExpense = 0;
@@ -214,6 +96,7 @@ function updateMetricsAndAccounts(transactions) {
     const convertedAmt = parseFloat(t.converted_amount) || 0;
     const incentive = parseFloat(t.incentive_amount) || 0;
     const type = t.type;
+    const dueStatus = t.due_status || 'INSTANT';
 
     if (type === 'Income') {
       const acc = t.payment_method || 'Cash';
@@ -245,8 +128,13 @@ function updateMetricsAndAccounts(transactions) {
       const bdFromAcc = t.from_account;
       const ksaToAcc = t.to_account;
 
+      // 1. Deduct BDT from BD Account ALWAYS (Since BD money was spent)
       if (accBalances.hasOwnProperty(bdFromAcc)) accBalances[bdFromAcc] -= (amt + fee);
-      if (accBalances.hasOwnProperty(ksaToAcc)) accBalances[ksaToAcc] += convertedAmt;
+
+      // 2. Add converted SAR to KSA Account ONLY IF INSTANT OR COLLECTED!
+      if (dueStatus === 'INSTANT' || dueStatus === 'COLLECTED') {
+        if (accBalances.hasOwnProperty(ksaToAcc)) accBalances[ksaToAcc] += convertedAmt;
+      }
     }
   });
 
@@ -290,6 +178,70 @@ function updateMetricsAndAccounts(transactions) {
     `).join('');
   }
 }
+
+// RENDER RECEIVABLES & PAYABLES (DUE LIST)
+function renderPendingReceivablesList(transactions) {
+  const container = document.getElementById('debts-list-container');
+  const sarTextEl = document.getElementById('total-pending-sar-text');
+  const bdtTextEl = document.getElementById('total-pending-bdt-text');
+
+  const pendingOutward = transactions.filter(t => t.type === 'Outward Expense' && t.due_status === 'DUE');
+
+  let totalPendingSAR = 0;
+  let totalPendingBDT = 0;
+
+  pendingOutward.forEach(t => {
+    totalPendingSAR += parseFloat(t.converted_amount) || 0;
+    totalPendingBDT += parseFloat(t.amount) || 0;
+  });
+
+  if (sarTextEl) sarTextEl.innerText = `SAR ${totalPendingSAR.toFixed(2)}`;
+  if (bdtTextEl) bdtTextEl.innerText = `BDT ${totalPendingBDT.toFixed(2)}`;
+
+  if (!container) return;
+
+  if (!pendingOutward.length) {
+    container.innerHTML = `<p class="text-xs text-slate-500 py-2 text-center">No pending credit or receivables.</p>`;
+    return;
+  }
+
+  container.innerHTML = pendingOutward.map(t => {
+    const friendName = t.debtor_name || 'Friend';
+    const friendPhone = t.debtor_phone ? `(${t.debtor_phone})` : '';
+    const bdtAmt = parseFloat(t.amount) || 0;
+    const sarAmt = parseFloat(t.converted_amount) || 0;
+
+    return `
+      <div class="flex items-center justify-between p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs">
+        <div>
+          <div class="font-bold text-white flex items-center gap-1.5">
+            <span>${friendName}</span>
+            <span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 font-bold">বাকি (Pending)</span>
+          </div>
+          <span class="text-[10px] text-slate-400 block">Outward BD: BDT ${bdtAmt.toFixed(2)} ${friendPhone}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-emerald-400">SAR ${sarAmt.toFixed(2)}</span>
+          <button onclick="openCollectModal('${t.id}', '${sarAmt}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-bold shadow">
+            Collect SAR
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// COLLECT SAR MODAL HANDLERS
+window.openCollectModal = function(transId, sarAmount) {
+  document.getElementById('collect-trans-id').value = transId;
+  document.getElementById('collect-sar-amount').value = sarAmount;
+  document.getElementById('collect-modal-subtitle').innerText = `SAR ${sarAmount} রিয়াল কোন অ্যাকাউন্টে গ্রহণ করেছেন?`;
+  document.getElementById('collect-modal').classList.remove('hidden');
+};
+
+window.closeCollectModal = function() {
+  document.getElementById('collect-modal').classList.add('hidden');
+};
 
 window.updateBdWealthSarEquivalent = function() {
   const customRateInput = document.getElementById('bd-custom-rate-input');
@@ -407,7 +359,8 @@ function getFilteredTransactions() {
     filtered = filtered.filter(t => 
       (t.category && t.category.toLowerCase().includes(searchQ)) || 
       (t.payment_method && t.payment_method.toLowerCase().includes(searchQ)) || 
-      (t.type && t.type.toLowerCase().includes(searchQ))
+      (t.type && t.type.toLowerCase().includes(searchQ)) ||
+      (t.debtor_name && t.debtor_name.toLowerCase().includes(searchQ))
     );
   }
 
@@ -434,10 +387,6 @@ window.applyFiltersAndRender = function() {
   if (!container) return;
 
   const filtered = getFilteredTransactions();
-
-  if (document.getElementById('trans-count-badge')) {
-    document.getElementById('trans-count-badge').innerText = `${filtered.length} Items`;
-  }
 
   if (!filtered.length) {
     container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">No matching records found.</p>`;
@@ -503,9 +452,6 @@ window.downloadPDFReport = function() {
         ${rowsHtml}
       </tbody>
     </table>
-    <div style="margin-top: 20px; font-size: 9px; color: #94a3b8; text-align: right;">
-      Generated on: ${new Date().toLocaleString()}
-    </div>
   `;
 
   const opt = {
@@ -525,6 +471,7 @@ function createItemHTML(t) {
   const convertedAmt = parseFloat(t.converted_amount) || 0;
   const incentive = parseFloat(t.incentive_amount) || 0;
   const fee = parseFloat(t.remit_fee) || 0;
+  const dueStatus = t.due_status || 'INSTANT';
   
   const isBd = BD_ACCOUNTS.includes(t.payment_method) || BD_ACCOUNTS.includes(t.to_account) || BD_ACCOUNTS.includes(t.from_account);
   const curr = isBd ? 'BDT' : 'SAR';
@@ -564,10 +511,11 @@ function createItemHTML(t) {
     icon = 'fa-paper-plane';
     sign = '';
   } else if (type === 'Outward Expense') {
-    title = `Outward: ${t.from_account} ➔ ${t.to_account}`;
+    const friendInfo = t.debtor_name ? ` (${t.debtor_name})` : '';
+    title = `Outward: ${t.from_account} ➔ ${t.to_account}${friendInfo}`;
     displayValue = `BDT ${amt.toFixed(2)} ➔ SAR ${convertedAmt.toFixed(2)}`;
-    badgeColor = 'bg-rose-500/10 text-rose-400';
-    icon = 'fa-plane-arrival';
+    badgeColor = dueStatus === 'DUE' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400';
+    icon = dueStatus === 'DUE' ? 'fa-hourglass-half' : 'fa-plane-arrival';
     sign = '';
   }
 
@@ -581,6 +529,7 @@ function createItemHTML(t) {
           <h4 class="text-xs font-bold text-white flex items-center gap-1.5">
             <span>${title}</span>
             <span class="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300">${flag} ${curr}</span>
+            ${dueStatus === 'DUE' ? `<span class="text-[9px] px-1 rounded bg-amber-500/20 text-amber-400">বাকি</span>` : ''}
           </h4>
           <span class="text-[10px] text-slate-500">${formattedTime} ${fee > 0 ? `• Fee: ${fee.toFixed(2)}` : ''}</span>
         </div>
@@ -620,6 +569,10 @@ window.editTransaction = function(id) {
     document.getElementById('outward-to-acc').value = t.to_account || 'Cash';
     document.getElementById('outward-fee').value = t.remit_fee || 0;
     document.getElementById('outward-exchange-rate').value = t.exchange_rate || 32.50;
+    document.getElementById('outward-payment-status').value = t.due_status || 'INSTANT';
+    toggleOutwardCreditFields(t.due_status || 'INSTANT');
+    document.getElementById('outward-person-name').value = t.debtor_name || '';
+    document.getElementById('outward-person-phone').value = t.debtor_phone || '';
   } else {
     document.getElementById('modal-trans-payment').value = t.payment_method || 'Cash';
     document.getElementById('modal-trans-category').value = t.category || 'General';
@@ -639,7 +592,6 @@ function renderAnalyticsChart(transactions) {
   const ctx = document.getElementById('expenseChart')?.getContext('2d');
   if (!ctx) return;
   
-  // STRICT CALENDAR MONTH FILTER FOR ANALYTICS
   const monthlyExpenses = transactions.filter(t => (t.type === 'Expense' || t.type === 'Loan Payment') && isCurrentCalendarMonth(t.created_at));
   
   const catTotals = {};
@@ -658,7 +610,6 @@ function renderAnalyticsChart(transactions) {
   });
 }
 
-// STRICT CALENDAR MONTH BUDGET RESET & PROGRESS
 function renderBudgets(transactions) {
   const container = document.getElementById('budget-tracker-list');
   if (!container) return;
@@ -706,6 +657,29 @@ function renderBudgets(transactions) {
   }).join('');
 }
 
+function renderLoanGoalProgress(transactions) {
+  const currentMonthTrans = transactions.filter(t => isCurrentCalendarMonth(t.created_at));
+  
+  let totalLoanPaidBDT = 0;
+  currentMonthTrans.forEach(t => {
+    if (t.type === 'Loan Payment' || t.category === 'Loan Repayment') {
+      const amt = parseFloat(t.amount) || 0;
+      const isBd = BD_ACCOUNTS.includes(t.payment_method) || BD_ACCOUNTS.includes(t.to_account);
+      totalLoanPaidBDT += isBd ? amt : (amt * 32.50);
+    }
+  });
+
+  const percent = Math.min(((totalLoanPaidBDT / MONTHLY_LOAN_GOAL_BDT) * 100), 100).toFixed(1);
+
+  const paidEl = document.getElementById('loan-paid-amount');
+  const barEl = document.getElementById('loan-goal-progress-bar');
+  const statusEl = document.getElementById('loan-goal-status-text');
+
+  if (paidEl) paidEl.innerText = `BDT ${totalLoanPaidBDT.toFixed(2)}`;
+  if (barEl) barEl.style.width = `${percent}%`;
+  if (statusEl) statusEl.innerText = `${percent}% Paid for this calendar month`;
+}
+
 function loadSavedBudgets() {
   const uId = currentUser ? currentUser.id : 'local_user';
   const saved = localStorage.getItem(`spendly_budgets_${uId}`);
@@ -748,12 +722,6 @@ window.openTransactionModal = (presetType = null) => {
 
 window.closeTransactionModal = () => document.getElementById('trans-modal').classList.add('hidden');
 
-window.openDebtModal = () => {
-  document.getElementById('debt-form').reset();
-  document.getElementById('debt-modal').classList.remove('hidden');
-};
-window.closeDebtModal = () => document.getElementById('debt-modal').classList.add('hidden');
-
 window.openBudgetModal = () => {
   document.getElementById('budget-food').value = categoryBudgets.Food || '';
   document.getElementById('budget-rent').value = categoryBudgets.Rent || '';
@@ -771,36 +739,30 @@ function bindEvents() {
 
   document.getElementById('search-input')?.addEventListener('input', window.applyFiltersAndRender);
 
-  document.getElementById('debt-form')?.addEventListener('submit', async (e) => {
+  // SUBMIT COLLECT SAR FORM
+  document.getElementById('collect-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const personName = document.getElementById('debt-person-name').value;
-    const type = document.getElementById('debt-type').value;
-    const currency = document.getElementById('debt-currency').value;
-    const amount = parseFloat(document.getElementById('debt-amount').value);
-    const note = document.getElementById('debt-note').value;
+    const transId = document.getElementById('collect-trans-id').value;
+    const targetAcc = document.getElementById('collect-target-acc').value;
 
     const payload = {
-      user_id: currentUser ? currentUser.id : 'local_user',
-      person_name: personName,
-      type,
-      currency,
-      amount,
-      note,
-      status: 'PENDING'
+      to_account: targetAcc,
+      due_status: 'COLLECTED'
     };
 
     if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
       try {
-        await dbClient.from('debts').insert([payload]);
+        await dbClient.from('transactions').update(payload).eq('id', transId);
       } catch (err) {
         console.error(err);
       }
     }
 
-    window.closeDebtModal();
-    await loadDebts();
+    window.closeCollectModal();
+    await loadTransactions();
   });
 
+  // SUBMIT TRANSACTION FORM
   document.getElementById('modal-trans-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('modal-trans-id').value;
@@ -820,6 +782,9 @@ function bindEvents() {
     let exchangeRate = 0;
     let convertedAmt = 0;
     let incentiveAmt = 0;
+    let dueStatus = 'INSTANT';
+    let debtorName = null;
+    let debtorPhone = null;
 
     let sourceAccount = paymentVal;
     let totalRequired = amount;
@@ -856,6 +821,12 @@ function bindEvents() {
       paymentVal = fromAcc;
       sourceAccount = fromAcc;
       totalRequired = amount + fee;
+
+      dueStatus = document.getElementById('outward-payment-status').value;
+      if (dueStatus === 'DUE') {
+        debtorName = document.getElementById('outward-person-name').value || 'Friend';
+        debtorPhone = document.getElementById('outward-person-phone').value || '';
+      }
 
     } else if (typeVal === 'Expense' || typeVal === 'Loan Payment') {
       sourceAccount = paymentVal;
@@ -900,6 +871,9 @@ function bindEvents() {
       exchange_rate: exchangeRate,
       converted_amount: convertedAmt,
       incentive_amount: incentiveAmt,
+      due_status: dueStatus,
+      debtor_name: debtorName,
+      debtor_phone: debtorPhone,
       created_at: fullDateTime
     };
 
