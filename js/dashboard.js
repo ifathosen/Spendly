@@ -1,10 +1,12 @@
 let currentUser = null;
 let allTransactions = [];
+let allDebts = [];
 let chartInstance = null;
 let categoryBudgets = { Food: 0, Rent: 0, Shopping: 0, Bills: 0, General: 0 };
 
 const KSA_ACCOUNTS = ['Cash', 'Al Rajhi', 'SNB', 'Barq', 'Neo', 'Enjaz'];
 const BD_ACCOUNTS = ['IBBL', 'MTB', 'Midland', 'BRAC', 'EBL', 'Pubali'];
+const MONTHLY_LOAN_GOAL_BDT = 35000;
 
 document.addEventListener('DOMContentLoaded', async () => {
   bindEvents();
@@ -34,6 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     loadSavedBudgets();
     await loadTransactions();
+    await loadDebts();
 
     const savedTab = localStorage.getItem('spendly_active_tab') || 'dashboard';
     window.switchTab(savedTab);
@@ -41,6 +44,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error("Init Error:", err);
   }
 });
+
+// CALENDAR MONTH HELPER (1ST TO END OF MONTH)
+function isCurrentCalendarMonth(dateString) {
+  if (!dateString) return false;
+  const tDate = new Date(dateString);
+  const now = new Date();
+  return tDate.getFullYear() === now.getFullYear() && tDate.getMonth() === now.getMonth();
+}
 
 async function loadTransactions() {
   let cloudData = [];
@@ -67,7 +78,125 @@ async function loadTransactions() {
   window.applyFiltersAndRender();
   renderAnalyticsChart(allTransactions);
   renderBudgets(allTransactions);
+  renderLoanGoalProgress(allTransactions);
   updateMetricsAndAccounts(allTransactions);
+}
+
+// LOAD & RENDER UDHAR / DEBTS
+async function loadDebts() {
+  let cloudDebts = [];
+  try {
+    if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
+      const { data, error } = await dbClient.from('debts').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+      if (!error && data) {
+        cloudDebts = data;
+        localStorage.setItem(`spendly_cached_debts_${currentUser.id}`, JSON.stringify(data));
+      }
+    }
+  } catch (e) {
+    console.error(e);
+  }
+
+  if (cloudDebts.length === 0) {
+    const cached = localStorage.getItem(`spendly_cached_debts_${currentUser ? currentUser.id : 'local_user'}`);
+    allDebts = cached ? JSON.parse(cached) : [];
+  } else {
+    allDebts = cloudDebts;
+  }
+
+  renderDebtsList();
+}
+
+function renderDebtsList() {
+  const container = document.getElementById('debts-list-container');
+  const receivableEl = document.getElementById('total-receivable-text');
+  const payableEl = document.getElementById('total-payable-text');
+
+  let totalReceivableBDT = 0;
+  let totalPayableBDT = 0;
+
+  const pendingDebts = allDebts.filter(d => d.status === 'PENDING');
+
+  pendingDebts.forEach(d => {
+    const amt = parseFloat(d.amount) || 0;
+    if (d.type === 'GIVEN') {
+      totalReceivableBDT += d.currency === 'SAR' ? (amt * 32.50) : amt;
+    } else {
+      totalPayableBDT += d.currency === 'SAR' ? (amt * 32.50) : amt;
+    }
+  });
+
+  if (receivableEl) receivableEl.innerText = `BDT ${totalReceivableBDT.toFixed(2)}`;
+  if (payableEl) payableEl.innerText = `BDT ${totalPayableBDT.toFixed(2)}`;
+
+  if (!container) return;
+
+  if (!pendingDebts.length) {
+    container.innerHTML = `<p class="text-xs text-slate-500 py-2 text-center">No pending udhar or debt records.</p>`;
+    return;
+  }
+
+  container.innerHTML = pendingDebts.map(d => {
+    const isGiven = d.type === 'GIVEN';
+    const amt = parseFloat(d.amount) || 0;
+    return `
+      <div class="flex items-center justify-between p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs">
+        <div>
+          <div class="font-bold text-white flex items-center gap-1.5">
+            <span>${d.person_name}</span>
+            <span class="text-[9px] px-1.5 py-0.2 rounded ${isGiven ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">${isGiven ? 'পাওনা' : 'দেনা'}</span>
+          </div>
+          <span class="text-[10px] text-slate-400 block">${d.note || 'No note'}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="font-bold ${isGiven ? 'text-emerald-400' : 'text-rose-400'}">
+            ${d.currency} ${amt.toFixed(2)}
+          </span>
+          <button onclick="settleDebt('${d.id}')" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-bold">
+            Settled
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+window.settleDebt = async function(id) {
+  if (!confirm("Mark this record as paid / settled?")) return;
+
+  if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
+    try {
+      await dbClient.from('debts').update({ status: 'PAID' }).eq('id', id);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  await loadDebts();
+};
+
+// LOAN GOAL CALCULATOR (35,000 BDT DUE 1ST MONTHLY)
+function renderLoanGoalProgress(transactions) {
+  const currentMonthTrans = transactions.filter(t => isCurrentCalendarMonth(t.created_at));
+  
+  let totalLoanPaidBDT = 0;
+  currentMonthTrans.forEach(t => {
+    if (t.type === 'Loan Payment' || t.category === 'Loan Repayment') {
+      const amt = parseFloat(t.amount) || 0;
+      const isBd = BD_ACCOUNTS.includes(t.payment_method) || BD_ACCOUNTS.includes(t.to_account);
+      totalLoanPaidBDT += isBd ? amt : (amt * 32.50);
+    }
+  });
+
+  const percent = Math.min(((totalLoanPaidBDT / MONTHLY_LOAN_GOAL_BDT) * 100), 100).toFixed(1);
+
+  const paidEl = document.getElementById('loan-paid-amount');
+  const barEl = document.getElementById('loan-goal-progress-bar');
+  const statusEl = document.getElementById('loan-goal-status-text');
+
+  if (paidEl) paidEl.innerText = `BDT ${totalLoanPaidBDT.toFixed(2)}`;
+  if (barEl) barEl.style.width = `${percent}%`;
+  if (statusEl) statusEl.innerText = `${percent}% Paid for this calendar month`;
 }
 
 function updateMetricsAndAccounts(transactions) {
@@ -91,7 +220,7 @@ function updateMetricsAndAccounts(transactions) {
       if (accBalances.hasOwnProperty(acc)) accBalances[acc] += amt;
       if (KSA_ACCOUNTS.includes(acc)) ksaIncome += amt;
 
-    } else if (type === 'Expense') {
+    } else if (type === 'Expense' || type === 'Loan Payment') {
       const acc = t.payment_method || 'Cash';
       if (accBalances.hasOwnProperty(acc)) accBalances[acc] -= amt;
       if (KSA_ACCOUNTS.includes(acc)) ksaExpense += amt;
@@ -266,7 +395,6 @@ function renderTodayDashboardList(transactions) {
   container.innerHTML = todayTrans.map(t => createItemHTML(t)).join('');
 }
 
-// GET FILTERED LIST HELPER FOR SCREEN & PDF
 function getFilteredTransactions() {
   let filtered = [...allTransactions];
   const searchQ = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
@@ -318,7 +446,6 @@ window.applyFiltersAndRender = function() {
   container.innerHTML = filtered.map(t => createItemHTML(t)).join('');
 };
 
-// DOWNLOAD CUSTOM PDF REPORT
 window.downloadPDFReport = function() {
   const fromDate = document.getElementById('filter-from-date')?.value || 'All';
   const toDate = document.getElementById('filter-to-date')?.value || 'All';
@@ -419,6 +546,11 @@ function createItemHTML(t) {
     badgeColor = 'bg-emerald-500/10 text-emerald-400';
     icon = 'fa-arrow-down';
     sign = '+';
+  } else if (type === 'Loan Payment') {
+    title = `Loan Paid: (${t.payment_method || 'Cash'})`;
+    badgeColor = 'bg-indigo-500/10 text-indigo-400';
+    icon = 'fa-calendar-check';
+    sign = '-';
   } else if (type === 'Internal Transfer') {
     title = `Transfer: ${t.from_account} ➔ ${t.to_account}`;
     badgeColor = 'bg-indigo-500/10 text-indigo-400';
@@ -506,9 +638,12 @@ window.editTransaction = function(id) {
 function renderAnalyticsChart(transactions) {
   const ctx = document.getElementById('expenseChart')?.getContext('2d');
   if (!ctx) return;
-  const expenses = transactions.filter(t => t.type === 'Expense');
+  
+  // STRICT CALENDAR MONTH FILTER FOR ANALYTICS
+  const monthlyExpenses = transactions.filter(t => (t.type === 'Expense' || t.type === 'Loan Payment') && isCurrentCalendarMonth(t.created_at));
+  
   const catTotals = {};
-  expenses.forEach(t => {
+  monthlyExpenses.forEach(t => {
     catTotals[t.category || 'General'] = (catTotals[t.category || 'General'] || 0) + (parseFloat(t.amount) || 0);
   });
 
@@ -523,20 +658,22 @@ function renderAnalyticsChart(transactions) {
   });
 }
 
+// STRICT CALENDAR MONTH BUDGET RESET & PROGRESS
 function renderBudgets(transactions) {
   const container = document.getElementById('budget-tracker-list');
   if (!container) return;
 
-  const expenses = transactions.filter(t => t.type === 'Expense');
+  const monthlyExpenses = transactions.filter(t => t.type === 'Expense' && isCurrentCalendarMonth(t.created_at));
+  
   const spentByCat = {};
-  expenses.forEach(t => {
+  monthlyExpenses.forEach(t => {
     spentByCat[t.category || 'General'] = (spentByCat[t.category || 'General'] || 0) + (parseFloat(t.amount) || 0);
   });
 
   const activeBudgets = Object.keys(categoryBudgets).filter(c => categoryBudgets[c] > 0);
 
   if (!activeBudgets.length) {
-    container.innerHTML = `<p class="text-xs text-slate-500 py-2 text-center">No budget set. Click "+ Set Budget" to start.</p>`;
+    container.innerHTML = `<p class="text-xs text-slate-500 py-2 text-center">No budget set for this calendar month.</p>`;
     return;
   }
 
@@ -611,6 +748,12 @@ window.openTransactionModal = (presetType = null) => {
 
 window.closeTransactionModal = () => document.getElementById('trans-modal').classList.add('hidden');
 
+window.openDebtModal = () => {
+  document.getElementById('debt-form').reset();
+  document.getElementById('debt-modal').classList.remove('hidden');
+};
+window.closeDebtModal = () => document.getElementById('debt-modal').classList.add('hidden');
+
 window.openBudgetModal = () => {
   document.getElementById('budget-food').value = categoryBudgets.Food || '';
   document.getElementById('budget-rent').value = categoryBudgets.Rent || '';
@@ -627,6 +770,36 @@ function bindEvents() {
   });
 
   document.getElementById('search-input')?.addEventListener('input', window.applyFiltersAndRender);
+
+  document.getElementById('debt-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const personName = document.getElementById('debt-person-name').value;
+    const type = document.getElementById('debt-type').value;
+    const currency = document.getElementById('debt-currency').value;
+    const amount = parseFloat(document.getElementById('debt-amount').value);
+    const note = document.getElementById('debt-note').value;
+
+    const payload = {
+      user_id: currentUser ? currentUser.id : 'local_user',
+      person_name: personName,
+      type,
+      currency,
+      amount,
+      note,
+      status: 'PENDING'
+    };
+
+    if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
+      try {
+        await dbClient.from('debts').insert([payload]);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    window.closeDebtModal();
+    await loadDebts();
+  });
 
   document.getElementById('modal-trans-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -684,7 +857,7 @@ function bindEvents() {
       sourceAccount = fromAcc;
       totalRequired = amount + fee;
 
-    } else if (typeVal === 'Expense') {
+    } else if (typeVal === 'Expense' || typeVal === 'Loan Payment') {
       sourceAccount = paymentVal;
       totalRequired = amount;
     }
