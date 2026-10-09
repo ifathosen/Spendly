@@ -1,7 +1,7 @@
 let currentUser = null;
 let allTransactions = [];
 let chartInstance = null;
-let categoryBudgets = { Food: 0, Rent: 0, Shopping: 0 };
+let categoryBudgets = { Food: 0, Rent: 0, Shopping: 0, Bills: 0, General: 0 };
 
 const KSA_ACCOUNTS = ['Cash', 'Al Rajhi', 'SNB', 'Barq', 'Neo', 'Enjaz'];
 const BD_ACCOUNTS = ['IBBL', 'MTB', 'Midland', 'BRAC', 'EBL', 'Pubali'];
@@ -27,7 +27,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentUser = { id: 'local_user', email: 'user@spendly.local' };
     }
 
-    // Load stored custom rate
     const savedCustomRate = localStorage.getItem('spendly_bd_custom_rate');
     if (savedCustomRate && document.getElementById('bd-custom-rate-input')) {
       document.getElementById('bd-custom-rate-input').value = savedCustomRate;
@@ -73,7 +72,6 @@ async function loadTransactions() {
   if (document.getElementById('trans-count-badge')) document.getElementById('trans-count-badge').innerText = `${allTransactions.length} Items`;
 }
 
-// FULL BALANCE COMPUTATION & LIVE TRACKING
 function updateMetricsAndAccounts(transactions) {
   let ksaIncome = 0;
   let ksaExpense = 0;
@@ -133,18 +131,15 @@ function updateMetricsAndAccounts(transactions) {
   let bdTotalWealthBDT = 0;
   BD_ACCOUNTS.forEach(acc => { bdTotalWealthBDT += accBalances[acc]; });
 
-  // Store Balances Globally for Validation Check & Preview
   window.currentAccBalances = accBalances;
   window.bdTotalWealthBDT = bdTotalWealthBDT;
 
-  // Render KSA Hub Dashboard
   if (document.getElementById('total-balance')) document.getElementById('total-balance').innerText = `SAR ${ksaGrandTotal.toFixed(2)}`;
   if (document.getElementById('dash-cash-total')) document.getElementById('dash-cash-total').innerText = `SAR ${cashTotal.toFixed(2)}`;
   if (document.getElementById('dash-bank-total')) document.getElementById('dash-bank-total').innerText = `SAR ${saudiBankTotal.toFixed(2)}`;
   if (document.getElementById('total-income')) document.getElementById('total-income').innerText = `+SAR ${ksaIncome.toFixed(2)}`;
   if (document.getElementById('total-expense')) document.getElementById('total-expense').innerText = `-SAR ${ksaExpense.toFixed(2)}`;
 
-  // Render KSA Grid
   const bankGrid = document.getElementById('bank-accounts-grid');
   if (bankGrid) {
     bankGrid.innerHTML = KSA_ACCOUNTS.filter(b => b !== 'Cash').map(b => `
@@ -155,11 +150,9 @@ function updateMetricsAndAccounts(transactions) {
     `).join('');
   }
 
-  // Render BD Wealth Tab Totals & Custom Conversion Rate Calculation
   if (document.getElementById('total-bd-wealth')) document.getElementById('total-bd-wealth').innerText = `BDT ${bdTotalWealthBDT.toFixed(2)}`;
   updateBdWealthSarEquivalent();
 
-  // Render BD Bank Grid
   const bdBanksGrid = document.getElementById('bd-bank-accounts-grid');
   if (bdBanksGrid) {
     bdBanksGrid.innerHTML = BD_ACCOUNTS.map(b => `
@@ -171,7 +164,6 @@ function updateMetricsAndAccounts(transactions) {
   }
 }
 
-// DYNAMIC CUSTOM RATE EQUIVALENT CALCULATOR
 window.updateBdWealthSarEquivalent = function() {
   const customRateInput = document.getElementById('bd-custom-rate-input');
   const displayEl = document.getElementById('bd-wealth-sar-equivalent');
@@ -188,7 +180,6 @@ window.updateBdWealthSarEquivalent = function() {
   }
 };
 
-// DYNAMIC LIVE BALANCE PREVIEW IN MODAL
 window.updateModalBalancePreview = function() {
   const typeVal = document.getElementById('modal-trans-type').value;
   let selectedAcc = 'Cash';
@@ -277,7 +268,6 @@ function renderTodayDashboardList(transactions) {
   container.innerHTML = todayTrans.map(t => createItemHTML(t)).join('');
 }
 
-// WORKING TRANSACTION FILTERING & SORTING BY CURRENCY (SAR vs BDT)
 window.applyFiltersAndRender = function() {
   const container = document.getElementById('all-transactions-list');
   if (!container) return;
@@ -289,7 +279,6 @@ window.applyFiltersAndRender = function() {
   const fromDate = document.getElementById('filter-from-date')?.value;
   const toDate = document.getElementById('filter-to-date')?.value;
 
-  // Search Filter
   if (searchQ) {
     filtered = filtered.filter(t => 
       (t.category && t.category.toLowerCase().includes(searchQ)) || 
@@ -300,18 +289,15 @@ window.applyFiltersAndRender = function() {
     );
   }
 
-  // Currency Specific Filter (SAR vs BDT)
   if (currencyFilter === 'SAR') {
     filtered = filtered.filter(t => KSA_ACCOUNTS.includes(t.payment_method) || KSA_ACCOUNTS.includes(t.from_account));
   } else if (currencyFilter === 'BDT') {
     filtered = filtered.filter(t => BD_ACCOUNTS.includes(t.payment_method) || BD_ACCOUNTS.includes(t.from_account) || BD_ACCOUNTS.includes(t.to_account));
   }
 
-  // Date Filter
   if (fromDate) filtered = filtered.filter(t => (t.created_at ? t.created_at.split('T')[0] : '') >= fromDate);
   if (toDate) filtered = filtered.filter(t => (t.created_at ? t.created_at.split('T')[0] : '') <= toDate);
 
-  // Sorting
   if (sortBy === 'newest') filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
   else if (sortBy === 'oldest') filtered.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
   else if (sortBy === 'highest') filtered.sort((a, b) => (parseFloat(b.amount) || 0) - (parseFloat(a.amount) || 0));
@@ -323,9 +309,12 @@ window.applyFiltersAndRender = function() {
   container.innerHTML = filtered.map(t => createItemHTML(t)).join('');
 };
 
+// FULL DUAL-CURRENCY DISPLAY & EDIT BUTTON RESTORED
 function createItemHTML(t) {
   const type = t.type;
   const amt = parseFloat(t.amount) || 0;
+  const convertedAmt = parseFloat(t.converted_amount) || 0;
+  const incentive = parseFloat(t.incentive_amount) || 0;
   const fee = parseFloat(t.remit_fee) || 0;
   
   const isBd = BD_ACCOUNTS.includes(t.payment_method) || BD_ACCOUNTS.includes(t.to_account) || BD_ACCOUNTS.includes(t.from_account);
@@ -339,6 +328,7 @@ function createItemHTML(t) {
   }
 
   let title = `${t.category || 'General'} (${t.payment_method || 'Cash'})`;
+  let displayValue = `${curr} ${amt.toFixed(2)}`;
   let badgeColor = 'bg-rose-500/10 text-rose-400';
   let icon = 'fa-arrow-up';
   let sign = '-';
@@ -353,12 +343,17 @@ function createItemHTML(t) {
     icon = 'fa-right-left';
     sign = '';
   } else if (type === 'International Transfer') {
-    title = `Remittance: ${t.from_account} ➔ ${t.to_account}`;
+    // KSA -> BD (Dual Amount Display)
+    title = `Remit: ${t.from_account} ➔ ${t.to_account}`;
+    const totalBdtReceived = convertedAmt + incentive;
+    displayValue = `SAR ${amt.toFixed(2)} ➔ BDT ${totalBdtReceived.toFixed(2)}`;
     badgeColor = 'bg-emerald-500/10 text-emerald-400';
     icon = 'fa-paper-plane';
     sign = '';
   } else if (type === 'Outward Expense') {
+    // BD -> KSA (Dual Amount Display)
     title = `Outward: ${t.from_account} ➔ ${t.to_account}`;
+    displayValue = `BDT ${amt.toFixed(2)} ➔ SAR ${convertedAmt.toFixed(2)}`;
     badgeColor = 'bg-rose-500/10 text-rose-400';
     icon = 'fa-plane-arrival';
     sign = '';
@@ -380,13 +375,55 @@ function createItemHTML(t) {
       </div>
       <div class="flex items-center gap-2">
         <span class="text-xs font-bold ${type === 'Income' ? 'text-emerald-400' : 'text-white'}">
-          ${sign}${curr} ${amt.toFixed(2)}
+          ${sign}${displayValue}
         </span>
+        <!-- EDIT BUTTON RESTORED -->
+        <button onclick="editTransaction('${t.id}')" class="text-slate-500 hover:text-indigo-400 text-xs p-1"><i class="fa-solid fa-pen"></i></button>
         <button onclick="deleteTransaction('${t.id}')" class="text-slate-500 hover:text-rose-400 text-xs p-1"><i class="fa-solid fa-trash"></i></button>
       </div>
     </div>
   `;
 }
+
+// RESTORED EDIT TRANSACTION LOGIC
+window.editTransaction = function(id) {
+  const t = allTransactions.find(item => item.id == id);
+  if (!t) return;
+
+  document.getElementById('modal-trans-id').value = t.id;
+  document.getElementById('modal-trans-amount').value = t.amount;
+  document.getElementById('modal-trans-type').value = t.type || 'Expense';
+  
+  window.handleTypeChange(document.getElementById('modal-trans-type'));
+
+  if (t.type === 'Internal Transfer') {
+    document.getElementById('modal-transfer-from').value = t.from_account || t.payment_method || 'Cash';
+    document.getElementById('modal-transfer-to').value = t.to_account || 'Al Rajhi';
+    document.getElementById('internal-transfer-fee').value = t.remit_fee || 0;
+  } else if (t.type === 'International Transfer') {
+    document.getElementById('remit-sender-acc').value = t.from_account || 'Al Rajhi';
+    document.getElementById('remit-receiver-acc').value = t.to_account || 'IBBL';
+    document.getElementById('remit-fee').value = t.remit_fee || 0;
+    document.getElementById('remit-exchange-rate').value = t.exchange_rate || 32.50;
+  } else if (t.type === 'Outward Expense') {
+    document.getElementById('outward-from-acc').value = t.from_account || 'IBBL';
+    document.getElementById('outward-to-acc').value = t.to_account || 'Cash';
+    document.getElementById('outward-fee').value = t.remit_fee || 0;
+    document.getElementById('outward-exchange-rate').value = t.exchange_rate || 32.50;
+  } else {
+    document.getElementById('modal-trans-payment').value = t.payment_method || 'Cash';
+    document.getElementById('modal-trans-category').value = t.category || 'General';
+  }
+
+  if (t.created_at) {
+    const d = new Date(t.created_at);
+    document.getElementById('modal-trans-date').value = d.toISOString().split('T')[0];
+    document.getElementById('modal-trans-time').value = d.toTimeString().split(' ')[0].substring(0, 5);
+  }
+
+  document.getElementById('modal-title-text').innerText = 'Edit Record';
+  document.getElementById('trans-modal').classList.remove('hidden');
+};
 
 function renderAnalyticsChart(transactions) {
   const ctx = document.getElementById('expenseChart')?.getContext('2d');
@@ -408,31 +445,47 @@ function renderAnalyticsChart(transactions) {
   });
 }
 
+// REDESIGNED & PROPERLY LABELED BUDGET PROGRESS BARS WITH EXACT OVER-PERCENTAGE
 function renderBudgets(transactions) {
   const container = document.getElementById('budget-tracker-list');
   if (!container) return;
+
   const expenses = transactions.filter(t => t.type === 'Expense');
   const spentByCat = {};
   expenses.forEach(t => {
     spentByCat[t.category || 'General'] = (spentByCat[t.category || 'General'] || 0) + (parseFloat(t.amount) || 0);
   });
+
   const activeBudgets = Object.keys(categoryBudgets).filter(c => categoryBudgets[c] > 0);
+
   if (!activeBudgets.length) {
-    container.innerHTML = `<p class="text-xs text-slate-500 py-2 text-center">No budget set.</p>`;
+    container.innerHTML = `<p class="text-xs text-slate-500 py-2 text-center">No budget set. Click "+ Set Budget" to start.</p>`;
     return;
   }
+
   container.innerHTML = activeBudgets.map(cat => {
     const limit = categoryBudgets[cat];
     const spent = spentByCat[cat] || 0;
-    const percent = Math.min(((spent / limit) * 100), 100).toFixed(1);
+    const rawPercent = limit > 0 ? ((spent / limit) * 100).toFixed(1) : 0;
+    const isOver = spent > limit;
+    const barWidth = Math.min(rawPercent, 100);
+
     return `
-      <div class="space-y-1">
-        <div class="flex justify-between text-xs">
-          <span class="font-semibold text-white">${cat} Limit</span>
-          <span class="text-slate-300">SAR ${spent.toFixed(2)} / ${limit.toFixed(2)}</span>
+      <div class="space-y-1 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+        <div class="flex justify-between items-center text-xs">
+          <span class="font-bold text-white">${cat} Budget</span>
+          <span class="font-bold ${isOver ? 'text-rose-400' : 'text-emerald-400'}">
+            ${rawPercent}% ${isOver ? '⚠️' : ''}
+          </span>
         </div>
-        <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
-          <div class="h-full bg-indigo-500" style="width: ${percent}%"></div>
+        
+        <div class="flex justify-between text-[11px] text-slate-400 pb-1">
+          <span>Spent: SAR ${spent.toFixed(2)}</span>
+          <span>Limit: SAR ${limit.toFixed(2)}</span>
+        </div>
+
+        <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+          <div class="h-full ${isOver ? 'bg-rose-500 animate-pulse' : 'bg-indigo-500'} rounded-full transition-all duration-500" style="width: ${barWidth}%"></div>
         </div>
       </div>
     `;
@@ -480,7 +533,13 @@ window.openTransactionModal = (presetType = null) => {
 };
 
 window.closeTransactionModal = () => document.getElementById('trans-modal').classList.add('hidden');
-window.openBudgetModal = () => document.getElementById('budget-modal').classList.remove('hidden');
+
+window.openBudgetModal = () => {
+  document.getElementById('budget-food').value = categoryBudgets.Food || '';
+  document.getElementById('budget-rent').value = categoryBudgets.Rent || '';
+  document.getElementById('budget-shopping').value = categoryBudgets.Shopping || '';
+  document.getElementById('budget-modal').classList.remove('hidden');
+};
 window.closeBudgetModal = () => document.getElementById('budget-modal').classList.add('hidden');
 
 function bindEvents() {
@@ -494,6 +553,7 @@ function bindEvents() {
 
   document.getElementById('modal-trans-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const id = document.getElementById('modal-trans-id').value;
     const amount = parseFloat(document.getElementById('modal-trans-amount').value);
     const dateVal = document.getElementById('modal-trans-date').value;
     const timeVal = document.getElementById('modal-trans-time').value;
@@ -511,7 +571,6 @@ function bindEvents() {
     let convertedAmt = 0;
     let incentiveAmt = 0;
 
-    // Determine Source Account & Total Amount Needed (including Fee)
     let sourceAccount = paymentVal;
     let totalRequired = amount;
 
@@ -535,7 +594,7 @@ function bindEvents() {
       
       paymentVal = fromAcc;
       sourceAccount = fromAcc;
-      totalRequired = amount + fee; // in SAR
+      totalRequired = amount + fee;
 
     } else if (typeVal === 'Outward Expense') {
       fromAcc = document.getElementById('outward-from-acc').value;
@@ -546,19 +605,19 @@ function bindEvents() {
       convertedAmt = exchangeRate > 0 ? (amount / exchangeRate) : 0;
       paymentVal = fromAcc;
       sourceAccount = fromAcc;
-      totalRequired = amount + fee; // in BDT
+      totalRequired = amount + fee;
 
     } else if (typeVal === 'Expense') {
       sourceAccount = paymentVal;
       totalRequired = amount;
     }
 
-    // STRICT INSUFFICIENT BALANCE GUARD
+    // INSUFFICIENT BALANCE GUARD
     if (typeVal !== 'Income') {
       const availableBal = window.currentAccBalances ? (window.currentAccBalances[sourceAccount] || 0) : 0;
       if (totalRequired > availableBal) {
         alert(`❌ Insufficient Balance in ${sourceAccount}!\n\nAvailable Balance: ${availableBal.toFixed(2)}\nRequired Amount (with fee): ${totalRequired.toFixed(2)}`);
-        return; // STOP EXECUTION!
+        return;
       }
     }
 
@@ -583,7 +642,11 @@ function bindEvents() {
 
     if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
       try {
-        await dbClient.from('transactions').insert([payload]);
+        if (id) {
+          await dbClient.from('transactions').update(payload).eq('id', id);
+        } else {
+          await dbClient.from('transactions').insert([payload]);
+        }
       } catch (err) {
         console.error(err);
       }
