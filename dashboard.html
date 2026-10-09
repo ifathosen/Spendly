@@ -28,6 +28,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body class="bg-[#070a12] dark:bg-[#070a12] dark:text-slate-100 bg-slate-50 text-slate-900 font-sans min-h-screen pb-24 relative transition-colors duration-300">
 
@@ -103,22 +104,41 @@
       </div>
     </section>
 
-    <!-- 2. TRANSACTIONS TAB (FILTER BY SAR / BDT & SEARCH) -->
+    <!-- 2. TRANSACTIONS TAB (SPECIFIC BANK FILTER & PDF DOWNLOAD) -->
     <section id="tab-transactions" class="tab-page hidden space-y-3">
       <div class="flex items-center justify-between">
         <h2 class="text-sm font-bold dark:text-white text-slate-900 uppercase">Records History</h2>
-        <span id="trans-count-badge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400">0 Items</span>
+        
+        <!-- PDF Export Button -->
+        <button onclick="window.downloadPDFReport()" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg">
+          <i class="fa-solid fa-file-pdf"></i>
+          <span>PDF Report</span>
+        </button>
       </div>
 
       <div class="bg-slate-900 dark:bg-slate-900 bg-white border border-slate-800 dark:border-slate-800 border-slate-200 rounded-2xl p-3 space-y-2">
-        <input type="text" id="search-input" placeholder="Search title, category, bank..." class="w-full px-3 py-1.5 bg-slate-950 dark:bg-slate-950 bg-slate-100 border border-slate-800 dark:border-slate-800 border-slate-300 rounded-xl text-xs dark:text-white text-slate-900">
+        <input type="text" id="search-input" placeholder="Search title, category..." class="w-full px-3 py-1.5 bg-slate-950 dark:bg-slate-950 bg-slate-100 border border-slate-800 dark:border-slate-800 border-slate-300 rounded-xl text-xs dark:text-white text-slate-900">
         
         <div class="grid grid-cols-2 gap-2">
-          <!-- Currency Specific Filter -->
-          <select id="currency-filter" onchange="window.applyFiltersAndRender()" class="px-2 py-1.5 bg-slate-950 dark:bg-slate-950 bg-slate-100 border border-slate-800 dark:border-slate-800 border-slate-300 rounded-xl text-xs font-bold dark:text-white text-slate-900">
-            <option value="ALL">🌐 All Currencies</option>
-            <option value="SAR">🇸🇦 SAR (Saudi Only)</option>
-            <option value="BDT">🇧🇩 BDT (BD Only)</option>
+          <!-- Specific Bank / Account Filter -->
+          <select id="account-filter" onchange="window.applyFiltersAndRender()" class="px-2 py-1.5 bg-slate-950 dark:bg-slate-950 bg-slate-100 border border-slate-800 dark:border-slate-800 border-slate-300 rounded-xl text-xs font-bold dark:text-white text-slate-900">
+            <option value="ALL_ACCOUNTS">🏦 All Accounts/Banks</option>
+            <optgroup label="Saudi Arabia (SAR)">
+              <option value="Cash">Cash</option>
+              <option value="Al Rajhi">Al Rajhi</option>
+              <option value="SNB">SNB</option>
+              <option value="Barq">Barq</option>
+              <option value="Neo">Neo</option>
+              <option value="Enjaz">Enjaz</option>
+            </optgroup>
+            <optgroup label="Bangladesh (BDT)">
+              <option value="IBBL">IBBL</option>
+              <option value="MTB">MTB</option>
+              <option value="Midland">Midland</option>
+              <option value="BRAC">BRAC</option>
+              <option value="EBL">EBL</option>
+              <option value="Pubali">Pubali</option>
+            </optgroup>
           </select>
 
           <!-- Sorting Option -->
@@ -129,9 +149,16 @@
           </select>
         </div>
 
+        <!-- Custom Date Range Selector -->
         <div class="grid grid-cols-2 gap-2">
-          <input type="date" id="filter-from-date" class="px-2 py-1 bg-slate-950 dark:bg-slate-950 bg-slate-100 border border-slate-800 dark:border-slate-800 border-slate-300 rounded-lg text-[11px] dark:text-white text-slate-900">
-          <input type="date" id="filter-to-date" class="px-2 py-1 bg-slate-950 dark:bg-slate-950 bg-slate-100 border border-slate-800 dark:border-slate-800 border-slate-300 rounded-lg text-[11px] dark:text-white text-slate-900">
+          <div>
+            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">From Date</label>
+            <input type="date" id="filter-from-date" onchange="window.applyFiltersAndRender()" class="w-full px-2 py-1 bg-slate-950 dark:bg-slate-950 bg-slate-100 border border-slate-800 dark:border-slate-800 border-slate-300 rounded-lg text-[11px] dark:text-white text-slate-900">
+          </div>
+          <div>
+            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">To Date</label>
+            <input type="date" id="filter-to-date" onchange="window.applyFiltersAndRender()" class="w-full px-2 py-1 bg-slate-950 dark:bg-slate-950 bg-slate-100 border border-slate-800 dark:border-slate-800 border-slate-300 rounded-lg text-[11px] dark:text-white text-slate-900">
+          </div>
         </div>
       </div>
       
@@ -156,13 +183,12 @@
       </div>
     </section>
 
-    <!-- 4. BD WEALTH TAB (WITH CUSTOM CONVERSION RATE INPUT FIELD) -->
+    <!-- 4. BD WEALTH TAB -->
     <section id="tab-bdwealth" class="tab-page hidden space-y-4">
       <div class="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 border border-emerald-500/30 rounded-2xl p-5 shadow-xl text-white">
         <span class="text-[10px] font-bold text-emerald-300 uppercase tracking-widest">Total BD Wealth (BDT)</span>
         <div class="text-3xl font-black mt-1 text-emerald-400" id="total-bd-wealth">BDT 0.00</div>
         
-        <!-- CUSTOM EXCHANGE RATE FIELD & SAR EQUIVALENT DISPLAY -->
         <div class="mt-4 pt-3 border-t border-slate-800 space-y-2">
           <div class="flex justify-between items-center text-xs">
             <span class="text-slate-400 font-semibold">Custom Rate (1 SAR = ? BDT):</span>
@@ -221,7 +247,7 @@
     </button>
   </nav>
 
-  <!-- UNIVERSAL TRANSACTION MODAL (WITH BALANCE GUARD & FEES) -->
+  <!-- MODAL -->
   <div id="trans-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full relative shadow-2xl text-white">
       <button onclick="closeTransactionModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
@@ -230,7 +256,6 @@
 
       <h3 id="modal-title-text" class="text-xs font-black uppercase tracking-wider text-indigo-400 mb-2">New Entry</h3>
 
-      <!-- Selected Account Balance Preview Box -->
       <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl mb-3 flex items-center justify-between text-xs">
         <span class="text-slate-400">Available Balance:</span>
         <span id="modal-selected-acc-bal" class="font-bold text-emerald-400">SAR 0.00</span>
@@ -239,7 +264,6 @@
       <form id="modal-trans-form" class="space-y-3">
         <input type="hidden" id="modal-trans-id" value="">
 
-        <!-- Transaction Type Selection -->
         <div>
           <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Transaction Type</label>
           <select id="modal-trans-type" onchange="handleTypeChange(this)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-white">
@@ -256,13 +280,11 @@
           <input type="text" id="custom-type-input" placeholder="Enter custom type..." class="w-full px-3 py-2 bg-slate-950 border border-indigo-500 rounded-xl text-xs text-white">
         </div>
 
-        <!-- Amount Input -->
         <div class="relative">
           <span id="modal-currency-label" class="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-indigo-400 text-base">SAR</span>
           <input type="number" step="0.01" id="modal-trans-amount" placeholder="0.00" required class="w-full pl-16 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-2xl font-black text-white focus:outline-none focus:border-indigo-500">
         </div>
 
-        <!-- STANDARD ACCOUNT SELECTOR -->
         <div id="standard-acc-container">
           <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Account</label>
           <select id="modal-trans-payment" onchange="updateModalBalancePreview()" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
@@ -285,7 +307,6 @@
           </select>
         </div>
 
-        <!-- INTERNAL LOCAL TRANSFER SELECTOR WITH FEE -->
         <div id="transfer-acc-container" class="hidden space-y-2">
           <div class="grid grid-cols-2 gap-2">
             <div>
@@ -303,7 +324,6 @@
           </div>
         </div>
 
-        <!-- INTERNATIONAL TRANSFER (KSA ➔ BD) FIELDS -->
         <div id="remit-fields-container" class="hidden space-y-2.5 p-3 bg-slate-950/60 border border-indigo-500/30 rounded-2xl">
           <div class="grid grid-cols-2 gap-2">
             <div>
@@ -347,7 +367,6 @@
           </div>
         </div>
 
-        <!-- OUTWARD TRANSFER (BD ➔ KSA) FIELDS -->
         <div id="outward-fields-container" class="hidden space-y-2.5 p-3 bg-slate-950/60 border border-rose-500/30 rounded-2xl">
           <div class="grid grid-cols-2 gap-2">
             <div>
@@ -385,7 +404,6 @@
           </div>
         </div>
 
-        <!-- Date & Time -->
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Date</label>
@@ -397,7 +415,6 @@
           </div>
         </div>
 
-        <!-- Category Dropdown -->
         <div id="category-container">
           <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Category</label>
           <select id="modal-trans-category" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
