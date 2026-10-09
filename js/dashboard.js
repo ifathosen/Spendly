@@ -243,6 +243,126 @@ function renderArbitrageAndDailyMetrics(transactions) {
   if (document.getElementById('daily-pure-expense-text')) document.getElementById('daily-pure-expense-text').innerText = `SAR ${todayExpenseSAR.toFixed(2)}`;
 }
 
+// MODAL BREAKDOWN FUNCTIONS
+window.openIncomeBreakdownModal = function() {
+  const todayIncomes = allTransactions.filter(t => isToday(t.created_at) && t.type === 'Income');
+  
+  document.getElementById('breakdown-modal-title').innerText = "আজকের ইনকাম ব্রেকডাউন";
+  document.getElementById('breakdown-modal-subtitle').innerText = `মোট প্রাপ্তি: SAR ${(document.getElementById('daily-pure-income-text')?.innerText || 'SAR 0.00')}`;
+
+  const container = document.getElementById('breakdown-modal-list');
+  if (!todayIncomes.length) {
+    container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">আজকে কোনো ইনকাম এন্ট্রি করা হয়নি।</p>`;
+  } else {
+    container.innerHTML = todayIncomes.map(t => `
+      <div class="flex items-center justify-between p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs">
+        <div>
+          <span class="font-bold text-white block">${t.category || 'General'} (${t.payment_method || 'Cash'})</span>
+          <span class="text-[10px] text-slate-400">${new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+        <span class="font-black text-emerald-400">+SAR ${(parseFloat(t.amount) || 0).toFixed(2)}</span>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('breakdown-detail-modal').classList.remove('hidden');
+};
+
+window.openExpenseBreakdownModal = function() {
+  const currentRate = parseFloat(document.getElementById('bd-custom-rate-input')?.value) || 32.6868;
+  const todayExpenses = allTransactions.filter(t => isToday(t.created_at) && (t.type === 'Expense' || t.type === 'Loan Payment' || (t.remit_fee && parseFloat(t.remit_fee) > 0)));
+
+  document.getElementById('breakdown-modal-title').innerText = "আজকের খরচ ব্রেকডাউন";
+  document.getElementById('breakdown-modal-subtitle').innerText = `মোট খরচ: ${(document.getElementById('daily-pure-expense-text')?.innerText || 'SAR 0.00')}`;
+
+  const container = document.getElementById('breakdown-modal-list');
+  if (!todayExpenses.length) {
+    container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">আজকে কোনো খরচের এন্ট্রি নেই।</p>`;
+  } else {
+    container.innerHTML = todayExpenses.map(t => {
+      const amt = parseFloat(t.amount) || 0;
+      const fee = parseFloat(t.remit_fee) || 0;
+      let title = `${t.category || 'Expense'} (${t.payment_method || 'Cash'})`;
+      let valText = `SAR ${amt.toFixed(2)}`;
+
+      if (t.type === 'Loan Payment') title = `Loan Paid: (${t.payment_method || 'Cash'})`;
+      if (t.type === 'International Transfer' || t.type === 'Internal Transfer' || t.type === 'Outward Expense') {
+        title = `${t.type} Fee`;
+        const feeInSar = KSA_ACCOUNTS.includes(t.from_account || t.payment_method) ? fee : (fee / currentRate);
+        valText = `SAR ${feeInSar.toFixed(2)} (Fee)`;
+      }
+
+      return `
+        <div class="flex items-center justify-between p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs">
+          <div>
+            <span class="font-bold text-white block">${title}</span>
+            <span class="text-[10px] text-slate-400">${new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+          <span class="font-black text-rose-400">-${valText}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  document.getElementById('breakdown-detail-modal').classList.remove('hidden');
+};
+
+window.openArbitrageBreakdownModal = function() {
+  const currentRate = parseFloat(document.getElementById('bd-custom-rate-input')?.value) || 32.6868;
+  const remitTrans = allTransactions.filter(t => t.type === 'International Transfer' || t.type === 'Outward Expense');
+
+  document.getElementById('breakdown-modal-title').innerText = "ট্রেডিং প্রফিট ব্রেকডাউন";
+  document.getElementById('breakdown-modal-subtitle').innerText = `Net Trading Gain: BDT ${(document.getElementById('arbitrage-profit-bdt')?.innerText || '0.00')} (${(document.getElementById('arbitrage-profit-sar')?.innerText || 'SAR 0.00')})`;
+
+  const container = document.getElementById('breakdown-modal-list');
+  if (!remitTrans.length) {
+    container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">কোনো রেমিট্যান্স বা আউটওয়ার্ড লেনদেন পাওয়া যায়নি।</p>`;
+  } else {
+    container.innerHTML = remitTrans.map(t => {
+      const isRemit = t.type === 'International Transfer';
+      const sarAmt = parseFloat(t.amount) || 0;
+      const converted = parseFloat(t.converted_amount) || 0;
+      const incentive = parseFloat(t.incentive_amount) || 0;
+      const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString() : '';
+
+      if (isRemit) {
+        const totalBdtGained = converted + incentive;
+        return `
+          <div class="p-2.5 bg-slate-950 border border-emerald-500/30 rounded-xl text-xs space-y-1">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-emerald-400"><i class="fa-solid fa-paper-plane mr-1"></i> Remittance Sent (KSA ➔ BD)</span>
+              <span class="text-[10px] text-slate-400">${dateStr}</span>
+            </div>
+            <div class="flex justify-between items-center text-[11px] text-slate-300">
+              <span>SAR ${sarAmt.toFixed(2)} @ Rate: ${(parseFloat(t.exchange_rate)||0).toFixed(4)}</span>
+              <span class="font-bold text-white">+BDT ${totalBdtGained.toFixed(2)}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        return `
+          <div class="p-2.5 bg-slate-950 border border-rose-500/30 rounded-xl text-xs space-y-1">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-rose-400"><i class="fa-solid fa-plane-arrival mr-1"></i> Outward Return (BD ➔ KSA)</span>
+              <span class="text-[10px] text-slate-400">${dateStr}</span>
+            </div>
+            <div class="flex justify-between items-center text-[11px] text-slate-300">
+              <span>SAR ${converted.toFixed(2)} Back</span>
+              <span class="font-bold text-white">-BDT ${sarAmt.toFixed(2)}</span>
+            </div>
+          </div>
+        `;
+      }
+    }).join('');
+  }
+
+  document.getElementById('breakdown-detail-modal').classList.remove('hidden');
+};
+
+window.closeBreakdownModal = function() {
+  document.getElementById('breakdown-detail-modal').classList.add('hidden');
+};
+
 function renderPendingReceivablesList(transactions) {
   const container = document.getElementById('debts-list-container');
   const sarTextEl = document.getElementById('total-pending-sar-text');
