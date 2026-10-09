@@ -171,21 +171,28 @@
           <h3 class="text-xs font-bold text-indigo-400 uppercase tracking-wider"><i class="fa-solid fa-chart-line mr-1.5"></i> Daily Real Profit & Expense Tracker</h3>
           <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold">Today</span>
         </div>
+        
         <div class="grid grid-cols-2 gap-3 pt-1">
+          <!-- Income Card -->
           <div onclick="openIncomeBreakdownModal()" class="p-2.5 bg-slate-950/80 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-xl cursor-pointer transition">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between mb-1">
               <span class="text-[10px] text-emerald-400 font-bold uppercase block">আজকের নিট ইনকাম</span>
               <i class="fa-solid fa-chevron-right text-[10px] text-emerald-400"></i>
             </div>
-            <span id="daily-pure-income-text" class="text-base font-black text-emerald-400">SAR 0.00</span>
+            <div id="daily-pure-income-sar-text" class="text-sm font-black text-emerald-400">SAR 0.00</div>
+            <div id="daily-pure-income-bdt-text" class="text-[11px] font-bold text-slate-300">BDT 0.00</div>
+            <span id="daily-pure-income-equiv-text" class="text-[9px] text-slate-400 block mt-1 pt-1 border-t border-slate-800/80">Equiv: SAR 0.00</span>
           </div>
 
+          <!-- Expense Card -->
           <div onclick="openExpenseBreakdownModal()" class="p-2.5 bg-slate-950/80 hover:bg-slate-900 border border-slate-800 hover:border-rose-500/50 rounded-xl cursor-pointer transition">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between mb-1">
               <span class="text-[10px] text-rose-400 font-bold uppercase block">আজকের প্রকৃত খরচ</span>
               <i class="fa-solid fa-chevron-right text-[10px] text-rose-400"></i>
             </div>
-            <span id="daily-pure-expense-text" class="text-base font-black text-rose-400">SAR 0.00</span>
+            <div id="daily-pure-expense-sar-text" class="text-sm font-black text-rose-400">SAR 0.00</div>
+            <div id="daily-pure-expense-bdt-text" class="text-[11px] font-bold text-slate-300">BDT 0.00</div>
+            <span id="daily-pure-expense-equiv-text" class="text-[9px] text-slate-400 block mt-1 pt-1 border-t border-slate-800/80">Equiv: SAR 0.00</span>
           </div>
         </div>
       </div>
