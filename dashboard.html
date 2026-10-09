@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spendly Pro - Financial Suite</title>
+  <title>Spendly Pro - Multi-Currency Financial Suite</title>
 
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#070a12">
@@ -25,20 +25,28 @@
 </head>
 <body class="bg-[#070a12] dark:bg-[#070a12] dark:text-slate-100 bg-slate-50 text-slate-900 font-sans min-h-screen pb-24 relative transition-colors duration-300">
 
+  <!-- Page Loader -->
+  <div id="page-loader" class="fixed inset-0 z-[100] bg-[#070a12] flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-2xl animate-pulse mb-3">
+      <i class="fa-solid fa-vault text-white text-2xl"></i>
+    </div>
+    <h1 class="text-xl font-black text-white tracking-wider">SPENDLY PRO</h1>
+  </div>
+
   <!-- Header -->
-  <header class="sticky top-0 z-40 bg-[#070a12]/90 dark:bg-[#070a12]/90 bg-white/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+  <header class="sticky top-0 z-40 bg-[#070a12]/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
     <div class="flex items-center gap-2.5">
       <div class="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg">
         <i class="fa-solid fa-vault text-white text-xs"></i>
       </div>
-      <span class="text-lg font-black tracking-tight dark:text-white text-slate-900" data-i18n="appName">স্পেন্ডলি প্রো</span>
+      <span class="text-lg font-black tracking-tight text-white" data-i18n="appName">স্পেন্ডলি প্রো</span>
     </div>
 
     <div class="flex items-center gap-2">
       <!-- Language Switcher Doodle -->
       <button onclick="toggleLanguage()" class="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 font-bold text-xs hover:bg-indigo-500/20 transition">
         <i class="fa-solid fa-language text-sm"></i>
-        <span id="lang-label">BN</span>
+        <span id="lang-label">বাংলা</span>
       </button>
 
       <button onclick="toggleTheme()" class="w-8 h-8 rounded-xl bg-slate-800/50 text-indigo-400 flex items-center justify-center text-xs">
@@ -71,7 +79,7 @@
       </div>
 
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5" data-i18n="saudiBanks">সৌদি ব্যাংকসমূহ (স্টেটমেন্ট দেখতে নাম এ ক্লিক করুন)</h3>
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5" data-i18n="saudiBanks">সৌদি ব্যাংকসমূহ</h3>
         <div id="bank-accounts-grid" class="grid grid-cols-2 gap-2"></div>
       </div>
 
@@ -87,7 +95,10 @@
       </div>
 
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <h3 class="text-xs font-bold text-white uppercase tracking-wider mb-3" data-i18n="todaysTransactions">আজকের লেনদেন</h3>
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-xs font-bold text-white uppercase tracking-wider" data-i18n="todaysTransactions">আজকের লেনদেন</h3>
+          <span class="text-[10px] font-semibold text-indigo-400">Today</span>
+        </div>
         <div id="dashboard-recent-list" class="space-y-2"></div>
       </div>
     </section>
@@ -96,7 +107,7 @@
     <section id="tab-transactions" class="tab-page hidden space-y-3">
       <div class="flex items-center justify-between">
         <h2 class="text-sm font-bold text-white uppercase" data-i18n="recordsHistory">রেকর্ড হিস্ট্রি</h2>
-        <button onclick="window.downloadPDFReport()" class="px-2.5 py-1 bg-indigo-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5">
+        <button onclick="window.downloadPDFReport()" class="px-2.5 py-1 bg-indigo-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg">
           <i class="fa-solid fa-file-pdf"></i>
           <span data-i18n="pdfReport">পিডিএফ রিপোর্ট</span>
         </button>
@@ -151,20 +162,54 @@
 
     <!-- 3. ANALYTICS & ARBITRAGE TRACKER TAB -->
     <section id="tab-analytics" class="tab-page hidden space-y-4">
-      <div class="bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 border border-indigo-500/30 rounded-2xl p-4 text-white space-y-3">
+      <div class="bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 border border-indigo-500/30 rounded-2xl p-4 text-white space-y-3 shadow-xl">
         <h3 class="text-xs font-bold text-indigo-400 uppercase tracking-wider" data-i18n="dailyProfitExpense"><i class="fa-solid fa-chart-line mr-1.5"></i> দৈনিক প্রফিট ও খরচ ট্র্যাকার</h3>
         
         <div class="grid grid-cols-2 gap-3 pt-1">
-          <div onclick="openIncomeBreakdownModal()" class="p-2.5 bg-slate-950/80 border border-slate-800 rounded-xl cursor-pointer hover:border-emerald-500/50">
+          <div onclick="openIncomeBreakdownModal()" class="p-2.5 bg-slate-950/80 border border-slate-800 hover:border-emerald-500/50 rounded-xl cursor-pointer transition">
             <span class="text-[10px] text-emerald-400 font-bold uppercase block" data-i18n="netIncomeToday">আজকের নিট ইনকাম</span>
             <div id="daily-pure-income-sar-text" class="text-sm font-black text-emerald-400">SAR 0.00</div>
             <div id="daily-pure-income-bdt-text" class="text-[11px] font-bold text-slate-300">BDT 0.00</div>
+            <span id="daily-pure-income-equiv-text" class="text-[9px] text-slate-400 block mt-1 pt-1 border-t border-slate-800/80">Equiv: SAR 0.00</span>
           </div>
 
-          <div onclick="openExpenseBreakdownModal()" class="p-2.5 bg-slate-950/80 border border-slate-800 rounded-xl cursor-pointer hover:border-rose-500/50">
+          <div onclick="openExpenseBreakdownModal()" class="p-2.5 bg-slate-950/80 border border-slate-800 hover:border-rose-500/50 rounded-xl cursor-pointer transition">
             <span class="text-[10px] text-rose-400 font-bold uppercase block" data-i18n="pureExpenseToday">আজকের প্রকৃত খরচ</span>
             <div id="daily-pure-expense-sar-text" class="text-sm font-black text-rose-400">SAR 0.00</div>
             <div id="daily-pure-expense-bdt-text" class="text-[11px] font-bold text-slate-300">BDT 0.00</div>
+            <span id="daily-pure-expense-equiv-text" class="text-[9px] text-slate-400 block mt-1 pt-1 border-t border-slate-800/80">Equiv: SAR 0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- REMITTANCE ARBITRAGE CARD -->
+      <div class="bg-slate-900 border border-indigo-500/30 rounded-2xl p-4 space-y-3 text-white">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-emerald-400 uppercase tracking-wider" data-i18n="remittanceArbitrage"><i class="fa-solid fa-repeat mr-1.5"></i> রেমিট্যান্স ট্রেডিং প্রফিট</h3>
+          <span class="text-[10px] text-slate-400 font-semibold">KSA ↔ BD Trading</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl">
+            <span class="text-[10px] text-slate-400 font-bold uppercase block" data-i18n="sentRemittance">পাঠানো রেমিট্যান্স</span>
+            <span id="arbitrage-sent-sar" class="font-bold text-white text-xs">SAR 0.00</span>
+            <span id="arbitrage-rec-bdt" class="text-[10px] text-emerald-400 block mt-0.5">(BDT 0.00)</span>
+          </div>
+          <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl">
+            <span class="text-[10px] text-slate-400 font-bold uppercase block" data-i18n="returnedSar">ফেরত আনা রিয়াল</span>
+            <span id="arbitrage-returned-sar" class="font-bold text-white text-xs">SAR 0.00</span>
+            <span id="arbitrage-spent-bdt" class="text-[10px] text-rose-400 block mt-0.5">(BDT 0.00)</span>
+          </div>
+        </div>
+
+        <div onclick="openArbitrageBreakdownModal()" class="p-3 bg-slate-950 hover:bg-slate-900 border border-emerald-500/40 rounded-xl flex items-center justify-between cursor-pointer transition">
+          <div>
+            <span class="text-[10px] text-emerald-400 font-bold uppercase block" data-i18n="netTradingProfit">নিট ট্রেডিং লাভ</span>
+            <span id="arbitrage-profit-bdt" class="text-base font-black text-emerald-400">BDT 0.00</span>
+          </div>
+          <div class="text-right">
+            <span class="text-[9px] text-slate-400 uppercase block">SAR Equivalent</span>
+            <span id="arbitrage-profit-sar" class="text-sm font-black text-indigo-400">SAR 0.00</span>
           </div>
         </div>
       </div>
@@ -185,11 +230,37 @@
         <p class="text-[10px] text-slate-400 text-right" id="loan-goal-status-text">0% Saved in Midland Bank this month</p>
       </div>
 
+      <!-- RECEIVABLES & PAYABLES -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <h3 class="text-xs font-bold text-white uppercase tracking-wider" data-i18n="receivablesPayables"><i class="fa-solid fa-hand-holding-dollar text-emerald-400 mr-1.5"></i> পাওনা ও দেনার হিসাব</h3>
+        
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl">
+            <span class="text-[10px] text-emerald-400 font-bold uppercase block" data-i18n="totalPendingSar">মোট পাওনা (Pending SAR)</span>
+            <span id="total-pending-sar-text" class="font-black text-emerald-400 text-sm">SAR 0.00</span>
+          </div>
+          <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl">
+            <span class="text-[10px] text-indigo-400 font-bold uppercase block" data-i18n="equivalentBdt">সমতুল্য টাকা (BDT)</span>
+            <span id="total-pending-bdt-text" class="font-black text-indigo-400 text-sm">BDT 0.00</span>
+          </div>
+        </div>
+
+        <div id="debts-list-container" class="space-y-2 pt-1"></div>
+      </div>
+
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
         <h3 class="text-xs font-bold text-slate-400 uppercase mb-3" data-i18n="expenseDistribution">চলতি মাসের খরচ বণ্টন</h3>
         <div class="w-full max-w-[200px] mx-auto">
           <canvas id="expenseChart"></canvas>
         </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-white uppercase" data-i18n="monthlyBudgets">চলতি মাসের বাজেট</h3>
+          <button onclick="openBudgetModal()" class="text-xs text-indigo-400 font-bold hover:underline">+ Set Budget</button>
+        </div>
+        <div id="budget-tracker-list" class="space-y-2.5"></div>
       </div>
     </section>
 
@@ -202,7 +273,7 @@
         <div class="mt-4 pt-3 border-t border-slate-800 space-y-2">
           <div class="flex justify-between items-center text-xs">
             <span class="text-slate-400 font-semibold" data-i18n="customRateLabel">কাস্টম রেট (১ SAR = ? BDT):</span>
-            <input type="number" step="0.0001" id="bd-custom-rate-input" placeholder="32.6868" oninput="updateBdWealthSarEquivalent()" class="w-28 px-2 py-1 bg-slate-900 border border-slate-700 rounded-lg text-right text-xs text-emerald-400 font-bold">
+            <input type="number" step="0.0001" id="bd-custom-rate-input" placeholder="32.6868" oninput="updateBdWealthSarEquivalent()" class="w-28 px-2 py-1 bg-slate-900 border border-slate-700 rounded-lg text-right text-xs text-emerald-400 font-bold focus:outline-none">
           </div>
           <div class="flex justify-between items-center text-xs">
             <span class="text-slate-400" data-i18n="sarEquivValue">সমতুল্য রিয়াল মান:</span>
@@ -212,26 +283,243 @@
       </div>
 
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3" data-i18n="bdAccountsTitle">বাংলাদেশের ব্যাংক ও ওয়ালেট (স্টেটমেন্ট দেখতে ক্লিক করুন)</h3>
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3" data-i18n="bdAccountsTitle">বাংলাদেশের ব্যাংক ও ওয়ালেট</h3>
         <div id="bd-bank-accounts-grid" class="grid grid-cols-2 gap-2"></div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2.5">
+        <h3 class="text-xs font-bold text-white uppercase">BD Operations</h3>
+        <button onclick="openTransactionModal('BD_LOCAL_EXPENSE')" class="w-full py-2.5 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 text-rose-400 font-bold rounded-xl text-xs flex items-center justify-center gap-2" data-i18n="bdLocalExpenseBtn">
+          <i class="fa-solid fa-receipt"></i>
+          <span>বাংলাদেশে স্থানীয় খরচ রেকর্ড (Local BD)</span>
+        </button>
+        <button onclick="openTransactionModal('OUTWARD_EXPENSE')" class="w-full py-2.5 bg-indigo-500/10 border border-indigo-500/30 hover:bg-indigo-500/20 text-indigo-400 font-bold rounded-xl text-xs flex items-center justify-center gap-2" data-i18n="outwardBtn">
+          <i class="fa-solid fa-plane-arrival"></i>
+          <span>আউটওয়ার্ড ট্রান্সফার (BD ➔ KSA)</span>
+        </button>
       </div>
     </section>
 
   </main>
 
+  <!-- UNIVERSAL TRANSACTION MODAL -->
+  <div id="trans-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl">
+      <button onclick="closeTransactionModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      <h3 id="modal-title-text" class="text-xs font-black uppercase text-indigo-400 mb-2">New Entry</h3>
+
+      <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl mb-3 flex items-center justify-between text-xs">
+        <span class="text-slate-400" data-i18n="availableBal">অবশিষ্ট ব্যালেন্স:</span>
+        <span id="modal-selected-acc-bal" class="font-bold text-emerald-400">SAR 0.00</span>
+      </div>
+
+      <form id="modal-trans-form" class="space-y-3">
+        <input type="hidden" id="modal-trans-id" value="">
+
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Transaction Type</label>
+          <select id="modal-trans-type" onchange="handleTypeChange(this)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-white">
+            <option value="Expense">Expense (প্রকৃত খরচ)</option>
+            <option value="Income">Income (প্রকৃত ইনকাম)</option>
+            <option value="Loan Payment">Loan Repayment (লোন পরিশোধ)</option>
+            <option value="Internal Transfer">Internal Transfer (Local)</option>
+            <option value="International Transfer">International Transfer (KSA ➔ BD)</option>
+            <option value="Outward Expense">Outward Transfer (BD ➔ KSA)</option>
+            <option value="CUSTOM">+ Add Custom Type</option>
+          </select>
+        </div>
+
+        <div id="custom-type-container" class="hidden">
+          <input type="text" id="custom-type-input" placeholder="Enter custom type..." class="w-full px-3 py-2 bg-slate-950 border border-indigo-500 rounded-xl text-xs text-white">
+        </div>
+
+        <div class="relative">
+          <span id="modal-currency-label" class="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-indigo-400 text-base">SAR</span>
+          <input type="number" step="0.01" id="modal-trans-amount" placeholder="0.00" required class="w-full pl-16 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-2xl font-black text-white focus:outline-none">
+        </div>
+
+        <div id="standard-acc-container">
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Account</label>
+          <select id="modal-trans-payment" onchange="updateModalBalancePreview()" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+            <optgroup label="Saudi Arabia Accounts (SAR)">
+              <option value="Cash">Cash</option>
+              <option value="Al Rajhi">Al Rajhi Bank</option>
+              <option value="SNB">SNB Bank</option>
+              <option value="Barq">Barq</option>
+              <option value="Neo">Neo</option>
+              <option value="Enjaz">Enjaz</option>
+            </optgroup>
+            <optgroup label="Bangladesh Accounts (BDT)">
+              <option value="IBBL">IBBL (Islami Bank)</option>
+              <option value="MTB">MTB</option>
+              <option value="Midland">Midland Bank</option>
+              <option value="BRAC">BRAC Bank</option>
+              <option value="EBL">EBL</option>
+              <option value="Pubali">Pubali Bank</option>
+              <option value="bKash">bKash Wallet</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div id="transfer-acc-container" class="hidden space-y-2">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-rose-400 uppercase mb-1">From Account</label>
+              <select id="modal-transfer-from" onchange="updateModalBalancePreview()" class="w-full px-2.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"></select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">To Account</label>
+              <select id="modal-transfer-to" class="w-full px-2.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"></select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Transfer Fee (Charge)</label>
+            <input type="number" step="0.01" id="internal-transfer-fee" value="0.00" class="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+          </div>
+        </div>
+
+        <div id="remit-fields-container" class="hidden space-y-2.5 p-3 bg-slate-950/60 border border-indigo-500/30 rounded-2xl">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-rose-400 uppercase mb-1">Sender Account (KSA)</label>
+              <select id="remit-sender-acc" onchange="updateModalBalancePreview()" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+                <option value="Al Rajhi">Al Rajhi</option>
+                <option value="SNB">SNB</option>
+                <option value="Barq">Barq</option>
+                <option value="Neo">Neo</option>
+                <option value="Enjaz">Enjaz</option>
+                <option value="Cash">Cash</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">Receiver Account (BD)</label>
+              <select id="remit-receiver-acc" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+                <option value="IBBL">IBBL</option>
+                <option value="MTB">MTB</option>
+                <option value="Midland">Midland</option>
+                <option value="BRAC">BRAC</option>
+                <option value="EBL">EBL</option>
+                <option value="Pubali">Pubali</option>
+                <option value="bKash">bKash</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Bank Fee (SAR)</label>
+              <input type="number" step="0.01" id="remit-fee" value="0.00" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Rate (1 SAR = BDT)</label>
+              <input type="number" step="0.0001" id="remit-exchange-rate" value="32.6868" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-emerald-400">
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between p-2 bg-slate-900 border border-slate-800 rounded-xl">
+            <span class="text-[11px] font-bold text-emerald-400">2.5% Gov Incentive</span>
+            <input type="checkbox" id="remit-incentive-toggle" checked class="w-4 h-4 accent-indigo-600 rounded">
+          </div>
+        </div>
+
+        <div id="outward-fields-container" class="hidden space-y-2.5 p-3 bg-slate-950/60 border border-rose-500/30 rounded-2xl">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-rose-400 uppercase mb-1">From BD Account</label>
+              <select id="outward-from-acc" onchange="updateModalBalancePreview()" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+                <option value="IBBL">IBBL</option>
+                <option value="MTB">MTB</option>
+                <option value="Midland">Midland</option>
+                <option value="BRAC">BRAC</option>
+                <option value="EBL">EBL</option>
+                <option value="Pubali">Pubali</option>
+                <option value="bKash">bKash</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">To KSA Account</label>
+              <select id="outward-to-acc" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+                <option value="Cash">Cash</option>
+                <option value="Al Rajhi">Al Rajhi</option>
+                <option value="SNB">SNB</option>
+                <option value="Barq">Barq</option>
+                <option value="Neo">Neo</option>
+                <option value="Enjaz">Enjaz</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Transfer Fee (BDT)</label>
+              <input type="number" step="0.01" id="outward-fee" value="0.00" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Rate (1 SAR = BDT)</label>
+              <input type="number" step="0.0001" id="outward-exchange-rate" value="33.0000" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-rose-400">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-bold text-amber-400 uppercase mb-1">Payment Status (পরিশোধের অবস্থা)</label>
+            <select id="outward-payment-status" onchange="toggleOutwardCreditFields(this.value)" class="w-full px-2.5 py-1.5 bg-slate-900 border border-amber-500/50 rounded-xl text-xs font-bold text-white">
+              <option value="INSTANT">💵 নগদ (Instant Received in KSA)</option>
+              <option value="DUE">⏳ বাকি / ধার (Credit - Will Receive Later)</option>
+            </select>
+          </div>
+
+          <div id="outward-credit-fields" class="hidden space-y-2 pt-1 border-t border-slate-800">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Friend Name (কার কাছে পাওনা?)</label>
+              <input type="text" id="outward-person-name" placeholder="e.g. Shohel" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Phone Number (ঐচ্ছিক)</label>
+              <input type="text" id="outward-person-phone" placeholder="05XXXXXXXX" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Date</label>
+            <input type="date" id="modal-trans-date" required class="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Exact Time</label>
+            <input type="time" id="modal-trans-time" required class="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+          </div>
+        </div>
+
+        <div id="category-container">
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Category</label>
+          <select id="modal-trans-category" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+            <option value="General">General</option>
+            <option value="Loan Repayment">Loan Repayment</option>
+            <option value="Food">Food</option>
+            <option value="Rent">Rent</option>
+            <option value="Salary">Salary</option>
+            <option value="Remittance">Remittance</option>
+            <option value="Shopping">Shopping</option>
+            <option value="Bills">Bills</option>
+          </select>
+        </div>
+
+        <button type="submit" class="w-full py-3 mt-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg transition" data-i18n="saveBtn">Save Transaction</button>
+      </form>
+    </div>
+  </div>
+
   <!-- SINGLE BANK STATEMENT POPUP MODAL -->
   <div id="bank-statement-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-indigo-500/30 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-3 max-h-[85vh] flex flex-col">
-      <button onclick="closeBankStatementModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
+      <button onclick="closeBankStatementModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
 
       <div>
-        <h3 id="stmt-modal-bank-name" class="text-base font-black text-indigo-400">Bank Name Statement</h3>
+        <h3 id="stmt-modal-bank-name" class="text-base font-black text-indigo-400">Bank Statement</h3>
         <p class="text-[11px] text-slate-400" data-i18n="bankStatementTitle">ব্যাংক ভিত্তিক লেনদেন বিবরণী</p>
       </div>
 
-      <!-- DATE RANGE FILTER FOR STATEMENT -->
       <div class="grid grid-cols-2 gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
         <div>
           <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5" data-i18n="fromDate">শুরুর তারিখ</label>
@@ -243,7 +531,6 @@
         </div>
       </div>
 
-      <!-- STATEMENT SUMMARY CARD -->
       <div class="grid grid-cols-2 gap-2 text-xs">
         <div class="p-2 bg-slate-950 border border-emerald-500/30 rounded-xl">
           <span class="text-[9px] text-emerald-400 font-bold uppercase block" data-i18n="totalIn">মোট ইন (জমা)</span>
@@ -255,12 +542,136 @@
         </div>
       </div>
 
-      <!-- STATEMENT TRANSACTIONS LIST -->
       <div id="stmt-modal-list" class="space-y-2 overflow-y-auto pr-1 flex-1"></div>
 
-      <button onclick="closeBankStatementModal()" class="w-full py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs" data-i18n="closeBtn">
-        বন্ধ করুন
-      </button>
+      <button onclick="closeBankStatementModal()" class="w-full py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs" data-i18n="closeBtn">বন্ধ করুন</button>
+    </div>
+  </div>
+
+  <!-- UNIVERSAL BREAKDOWN DETAIL POPUP MODAL -->
+  <div id="breakdown-detail-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-indigo-500/30 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-3 max-h-[85vh] flex flex-col">
+      <button onclick="closeBreakdownModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+
+      <div>
+        <h3 id="breakdown-modal-title" class="text-sm font-black text-white uppercase tracking-wider">Breakdown Details</h3>
+        <p id="breakdown-modal-subtitle" class="text-[11px] text-slate-400">বিবরণী আইটেম</p>
+      </div>
+
+      <div id="breakdown-modal-list" class="space-y-2 overflow-y-auto pr-1 flex-1"></div>
+
+      <button onclick="closeBreakdownModal()" class="w-full py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs mt-2" data-i18n="closeBtn">বন্ধ করুন</button>
+    </div>
+  </div>
+
+  <!-- DEBTOR DETAIL POPUP MODAL -->
+  <div id="debtor-detail-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-indigo-500/30 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-4">
+      <button onclick="closeDebtorDetailModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-lg font-bold">
+          <i class="fa-solid fa-user-gear"></i>
+        </div>
+        <div>
+          <h3 id="debtor-modal-name" class="text-sm font-black text-white">Debtor Name</h3>
+          <p class="text-[11px] text-amber-400 font-semibold"><i class="fa-solid fa-clock-rotate-left mr-1"></i> বাকি লেনদেনের তথ্য</p>
+        </div>
+      </div>
+
+      <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-2.5 text-xs">
+        <div class="flex justify-between items-center">
+          <span class="text-slate-400">মোবাইল নম্বর:</span>
+          <span id="debtor-modal-phone" class="font-bold text-indigo-400">Not provided</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-slate-400">বাংলাদেশে খরচ (BDT):</span>
+          <span id="debtor-modal-bdt" class="font-black text-white">BDT 0.00</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-slate-400">সৌদিতে পাওনা (SAR):</span>
+          <span id="debtor-modal-sar" class="font-black text-emerald-400">SAR 0.00</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-slate-400">এক্সচেঞ্জ রেট:</span>
+          <span id="debtor-modal-rate" class="font-bold text-amber-400">0.0000</span>
+        </div>
+        <div class="flex justify-between items-center pt-2 border-t border-slate-800/80">
+          <span class="text-slate-400">তারিখ ও সময়:</span>
+          <span id="debtor-modal-date" class="text-[10px] text-slate-300 font-medium">--</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button onclick="closeDebtorDetailModal()" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs" data-i18n="closeBtn">বন্ধ করুন</button>
+        <button id="debtor-modal-collect-btn" class="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg">Collect SAR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DELETE CONFIRMATION MODAL -->
+  <div id="delete-confirm-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-rose-500/40 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-rose-500/20 text-rose-500 flex items-center justify-center text-lg font-bold">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div>
+          <h3 class="text-sm font-black text-white">Spendly Pro Confirmation</h3>
+          <p class="text-[11px] text-slate-400">নিরাপত্তা নোটিশ</p>
+        </div>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3 rounded-xl border border-slate-800">
+        আপনি কি সত্যিই এই লেনদেনের এন্ট্রিটি ডিলিট করতে আগ্রহী? এটি মুছে ফেললে আপনার ব্যালেন্স ও হিসেব থেকে স্থায়ীভাবে বাদ যাবে।
+      </p>
+
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button onclick="closeDeleteModal()" class="py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs">বাতিল</button>
+        <button id="confirm-delete-btn" class="py-2.5 bg-rose-600 text-white font-bold rounded-xl text-xs shadow-lg">ডিলিট করুন</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COLLECT SAR MODAL -->
+  <div id="collect-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl">
+      <button onclick="closeCollectModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      <h3 class="text-xs font-black uppercase tracking-wider text-emerald-400 mb-2">Receive Pending Money (টাকা পেলাম)</h3>
+      <p class="text-[11px] text-slate-400 mb-3" id="collect-modal-subtitle">টাকাটি কোন অ্যাকাউন্টে গ্রহণ করেছেন?</p>
+
+      <form id="collect-form" class="space-y-3">
+        <input type="hidden" id="collect-trans-id" value="">
+        <input type="hidden" id="collect-sar-amount" value="0">
+
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Received In (KSA Account)</label>
+          <select id="collect-target-acc" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white font-bold">
+            <option value="Cash">Cash (নগদ রিয়াল)</option>
+            <option value="Al Rajhi">Al Rajhi Bank</option>
+            <option value="SNB">SNB Bank</option>
+            <option value="Barq">Barq</option>
+            <option value="Neo">Neo</option>
+            <option value="Enjaz">Enjaz</option>
+          </select>
+        </div>
+
+        <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg">Confirm & Add to Balance</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- BUDGET MODAL -->
+  <div id="budget-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full relative text-white">
+      <button onclick="closeBudgetModal()" class="absolute top-4 right-4 text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+      <h3 class="text-xs font-bold uppercase mb-3 text-indigo-400">Set Monthly Budgets</h3>
+      <form id="budget-form" class="space-y-2">
+        <input type="number" id="budget-food" placeholder="Food Limit (SAR)" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+        <input type="number" id="budget-rent" placeholder="Rent Limit (SAR)" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+        <input type="number" id="budget-shopping" placeholder="Shopping Limit (SAR)" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+        <button type="submit" class="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs" data-i18n="saveBtn">Save Budget</button>
+      </form>
     </div>
   </div>
 
@@ -291,5 +702,35 @@
   <script src="js/config.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/dashboard.js"></script>
+  <script>
+    window.addEventListener('load', () => {
+      const loader = document.getElementById('page-loader');
+      if(loader) {
+        loader.classList.add('opacity-0');
+        setTimeout(() => loader.remove(), 500);
+      }
+    });
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.classList.contains('dark');
+      if (isDark) {
+        html.classList.remove('dark');
+        document.getElementById('theme-icon').className = 'fa-solid fa-sun text-amber-400';
+      } else {
+        html.classList.add('dark');
+        document.getElementById('theme-icon').className = 'fa-solid fa-moon text-indigo-400';
+      }
+    }
+
+    function toggleOutwardCreditFields(val) {
+      const creditBox = document.getElementById('outward-credit-fields');
+      if (val === 'DUE') {
+        creditBox.classList.remove('hidden');
+      } else {
+        creditBox.classList.add('hidden');
+      }
+    }
+  </script>
 </body>
 </html>
