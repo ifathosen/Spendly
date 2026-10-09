@@ -80,7 +80,7 @@ async function loadTransactions() {
   updateMetricsAndAccounts(allTransactions);
 }
 
-// UPDATE ACCOUNTS & NET BALANCES
+// STRICT BALANCE & METRICS CALCULATION
 function updateMetricsAndAccounts(transactions) {
   let ksaIncome = 0;
   let ksaExpense = 0;
@@ -128,11 +128,11 @@ function updateMetricsAndAccounts(transactions) {
       const bdFromAcc = t.from_account;
       const ksaToAcc = t.to_account;
 
-      // 1. Deduct BDT from BD Account ALWAYS (Since BD money was spent)
+      // 1. Deduct BDT from BD Account ALWAYS (Since BD money was sent)
       if (accBalances.hasOwnProperty(bdFromAcc)) accBalances[bdFromAcc] -= (amt + fee);
 
-      // 2. Add converted SAR to KSA Account ONLY IF INSTANT OR COLLECTED!
-      if (dueStatus === 'INSTANT' || dueStatus === 'COLLECTED') {
+      // 2. Add SAR to KSA Account ONLY IF NOT DUE (i.e. INSTANT or COLLECTED)
+      if (dueStatus !== 'DUE') {
         if (accBalances.hasOwnProperty(ksaToAcc)) accBalances[ksaToAcc] += convertedAmt;
       }
     }
@@ -179,7 +179,7 @@ function updateMetricsAndAccounts(transactions) {
   }
 }
 
-// RENDER RECEIVABLES & PAYABLES (DUE LIST)
+// RENDER PENDING RECEIVABLES / DUE LIST
 function renderPendingReceivablesList(transactions) {
   const container = document.getElementById('debts-list-container');
   const sarTextEl = document.getElementById('total-pending-sar-text');
@@ -231,7 +231,6 @@ function renderPendingReceivablesList(transactions) {
   }).join('');
 }
 
-// COLLECT SAR MODAL HANDLERS
 window.openCollectModal = function(transId, sarAmount) {
   document.getElementById('collect-trans-id').value = transId;
   document.getElementById('collect-sar-amount').value = sarAmount;
@@ -570,7 +569,11 @@ window.editTransaction = function(id) {
     document.getElementById('outward-fee').value = t.remit_fee || 0;
     document.getElementById('outward-exchange-rate').value = t.exchange_rate || 32.50;
     document.getElementById('outward-payment-status').value = t.due_status || 'INSTANT';
-    toggleOutwardCreditFields(t.due_status || 'INSTANT');
+    
+    if (typeof window.toggleOutwardCreditFields === 'function') {
+      window.toggleOutwardCreditFields(t.due_status || 'INSTANT');
+    }
+    
     document.getElementById('outward-person-name').value = t.debtor_name || '';
     document.getElementById('outward-person-phone').value = t.debtor_phone || '';
   } else {
@@ -751,10 +754,10 @@ function bindEvents() {
     };
 
     if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
-      try {
-        await dbClient.from('transactions').update(payload).eq('id', transId);
-      } catch (err) {
-        console.error(err);
+      const res = await dbClient.from('transactions').update(payload).eq('id', transId);
+      if (res.error) {
+        alert("❌ Error: " + res.error.message);
+        return;
       }
     }
 
@@ -878,14 +881,17 @@ function bindEvents() {
     };
 
     if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
-      try {
-        if (id) {
-          await dbClient.from('transactions').update(payload).eq('id', id);
-        } else {
-          await dbClient.from('transactions').insert([payload]);
-        }
-      } catch (err) {
-        console.error(err);
+      let res;
+      if (id) {
+        res = await dbClient.from('transactions').update(payload).eq('id', id);
+      } else {
+        res = await dbClient.from('transactions').insert([payload]);
+      }
+
+      if (res && res.error) {
+        console.error("Supabase Error:", res.error);
+        alert(`❌ DB Error: ${res.error.message}\n\nদয়া করে সুপাবেসের SQL Editor-এ গিয়ে ALTER TABLE কোডটি রান করেছেন কিনা নিশ্চিত করুন।`);
+        return;
       }
     }
 
