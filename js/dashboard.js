@@ -189,7 +189,7 @@ function updateMetricsAndAccounts(transactions) {
   }
 }
 
-// RENDER ARBITRAGE & DAILY METRICS IN ANALYTICS TAB
+// RENDER ARBITRAGE & DAILY METRICS IN ANALYTICS TAB (CURRENCY SENSITIVE)
 function renderArbitrageAndDailyMetrics(transactions) {
   let totalSarSent = 0;
   let totalBdtReceivedFromRemittance = 0;
@@ -198,7 +198,10 @@ function renderArbitrageAndDailyMetrics(transactions) {
   let totalSarReturnedToKsa = 0;
 
   let todayIncomeSAR = 0;
+  let todayIncomeBDT = 0;
+  
   let todayExpenseSAR = 0;
+  let todayExpenseBDT = 0;
 
   const currentRate = parseFloat(document.getElementById('bd-custom-rate-input')?.value) || parseFloat(localStorage.getItem('spendly_bd_custom_rate')) || 32.6868;
 
@@ -207,6 +210,7 @@ function renderArbitrageAndDailyMetrics(transactions) {
     const fee = parseFloat(t.remit_fee) || 0;
     const converted = parseFloat(t.converted_amount) || 0;
     const incentive = parseFloat(t.incentive_amount) || 0;
+    const acc = t.from_account || t.payment_method || 'Cash';
 
     if (t.type === 'International Transfer') {
       totalSarSent += amt;
@@ -218,12 +222,25 @@ function renderArbitrageAndDailyMetrics(transactions) {
 
     if (isToday(t.created_at)) {
       if (t.type === 'Income') {
-        todayIncomeSAR += amt;
+        if (KSA_ACCOUNTS.includes(acc)) {
+          todayIncomeSAR += amt;
+        } else if (BD_ACCOUNTS.includes(acc)) {
+          todayIncomeBDT += amt;
+        }
       } else if (t.type === 'Expense' || t.type === 'Loan Payment') {
-        todayExpenseSAR += amt;
+        if (KSA_ACCOUNTS.includes(acc)) {
+          todayExpenseSAR += amt;
+        } else if (BD_ACCOUNTS.includes(acc)) {
+          todayExpenseBDT += amt;
+        }
       }
+
       if (fee > 0) {
-        todayExpenseSAR += (KSA_ACCOUNTS.includes(t.from_account || t.payment_method) ? fee : (fee / currentRate));
+        if (KSA_ACCOUNTS.includes(acc)) {
+          todayExpenseSAR += fee;
+        } else if (BD_ACCOUNTS.includes(acc)) {
+          todayExpenseBDT += fee;
+        }
       }
     }
   });
@@ -239,30 +256,50 @@ function renderArbitrageAndDailyMetrics(transactions) {
   if (document.getElementById('arbitrage-profit-bdt')) document.getElementById('arbitrage-profit-bdt').innerText = `BDT ${netProfitBDT.toFixed(2)}`;
   if (document.getElementById('arbitrage-profit-sar')) document.getElementById('arbitrage-profit-sar').innerText = `SAR ${netProfitSAR.toFixed(2)}`;
 
-  if (document.getElementById('daily-pure-income-text')) document.getElementById('daily-pure-income-text').innerText = `SAR ${todayIncomeSAR.toFixed(2)}`;
-  if (document.getElementById('daily-pure-expense-text')) document.getElementById('daily-pure-expense-text').innerText = `SAR ${todayExpenseSAR.toFixed(2)}`;
+  // INCOME TEXT
+  if (document.getElementById('daily-pure-income-sar-text')) document.getElementById('daily-pure-income-sar-text').innerText = `SAR ${todayIncomeSAR.toFixed(2)}`;
+  if (document.getElementById('daily-pure-income-bdt-text')) document.getElementById('daily-pure-income-bdt-text').innerText = `BDT ${todayIncomeBDT.toFixed(2)}`;
+  
+  const totalIncomeEquivalentSAR = todayIncomeSAR + (currentRate > 0 ? (todayIncomeBDT / currentRate) : 0);
+  if (document.getElementById('daily-pure-income-equiv-text')) document.getElementById('daily-pure-income-equiv-text').innerText = `Equiv: SAR ${totalIncomeEquivalentSAR.toFixed(2)}`;
+
+  // EXPENSE TEXT
+  if (document.getElementById('daily-pure-expense-sar-text')) document.getElementById('daily-pure-expense-sar-text').innerText = `SAR ${todayExpenseSAR.toFixed(2)}`;
+  if (document.getElementById('daily-pure-expense-bdt-text')) document.getElementById('daily-pure-expense-bdt-text').innerText = `BDT ${todayExpenseBDT.toFixed(2)}`;
+
+  const totalExpenseEquivalentSAR = todayExpenseSAR + (currentRate > 0 ? (todayExpenseBDT / currentRate) : 0);
+  if (document.getElementById('daily-pure-expense-equiv-text')) document.getElementById('daily-pure-expense-equiv-text').innerText = `Equiv: SAR ${totalExpenseEquivalentSAR.toFixed(2)}`;
 }
 
-// MODAL BREAKDOWN FUNCTIONS
+// MODAL BREAKDOWN FUNCTIONS (CURRENCY SPECIFIC)
 window.openIncomeBreakdownModal = function() {
+  const currentRate = parseFloat(document.getElementById('bd-custom-rate-input')?.value) || 32.6868;
   const todayIncomes = allTransactions.filter(t => isToday(t.created_at) && t.type === 'Income');
   
   document.getElementById('breakdown-modal-title').innerText = "আজকের ইনকাম ব্রেকডাউন";
-  document.getElementById('breakdown-modal-subtitle').innerText = `মোট প্রাপ্তি: SAR ${(document.getElementById('daily-pure-income-text')?.innerText || 'SAR 0.00')}`;
+  document.getElementById('breakdown-modal-subtitle').innerText = `আলাদা কারেন্সিতে প্রাপ্ত ইনকাম তালিকা`;
 
   const container = document.getElementById('breakdown-modal-list');
   if (!todayIncomes.length) {
     container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">আজকে কোনো ইনকাম এন্ট্রি করা হয়নি।</p>`;
   } else {
-    container.innerHTML = todayIncomes.map(t => `
-      <div class="flex items-center justify-between p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs">
-        <div>
-          <span class="font-bold text-white block">${t.category || 'General'} (${t.payment_method || 'Cash'})</span>
-          <span class="text-[10px] text-slate-400">${new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+    container.innerHTML = todayIncomes.map(t => {
+      const acc = t.payment_method || 'Cash';
+      const isBdAcc = BD_ACCOUNTS.includes(acc);
+      const curr = isBdAcc ? 'BDT' : 'SAR';
+      const flag = isBdAcc ? '🇧🇩' : '🇸🇦';
+      const amt = parseFloat(t.amount) || 0;
+
+      return `
+        <div class="flex items-center justify-between p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs">
+          <div>
+            <span class="font-bold text-white block">${t.category || 'General'} (${acc})</span>
+            <span class="text-[10px] text-slate-400">${new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+          <span class="font-black text-emerald-400">+${flag} ${curr} ${amt.toFixed(2)}</span>
         </div>
-        <span class="font-black text-emerald-400">+SAR ${(parseFloat(t.amount) || 0).toFixed(2)}</span>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 
   document.getElementById('breakdown-detail-modal').classList.remove('hidden');
@@ -273,7 +310,7 @@ window.openExpenseBreakdownModal = function() {
   const todayExpenses = allTransactions.filter(t => isToday(t.created_at) && (t.type === 'Expense' || t.type === 'Loan Payment' || (t.remit_fee && parseFloat(t.remit_fee) > 0)));
 
   document.getElementById('breakdown-modal-title').innerText = "আজকের খরচ ব্রেকডাউন";
-  document.getElementById('breakdown-modal-subtitle').innerText = `মোট খরচ: ${(document.getElementById('daily-pure-expense-text')?.innerText || 'SAR 0.00')}`;
+  document.getElementById('breakdown-modal-subtitle').innerText = `আলাদা কারেন্সিতে আসল খরচের তালিকা`;
 
   const container = document.getElementById('breakdown-modal-list');
   if (!todayExpenses.length) {
@@ -282,14 +319,18 @@ window.openExpenseBreakdownModal = function() {
     container.innerHTML = todayExpenses.map(t => {
       const amt = parseFloat(t.amount) || 0;
       const fee = parseFloat(t.remit_fee) || 0;
-      let title = `${t.category || 'Expense'} (${t.payment_method || 'Cash'})`;
-      let valText = `SAR ${amt.toFixed(2)}`;
+      const acc = t.from_account || t.payment_method || 'Cash';
+      const isBdAcc = BD_ACCOUNTS.includes(acc);
+      const curr = isBdAcc ? 'BDT' : 'SAR';
+      const flag = isBdAcc ? '🇧🇩' : '🇸🇦';
 
-      if (t.type === 'Loan Payment') title = `Loan Paid: (${t.payment_method || 'Cash'})`;
+      let title = `${t.category || 'Expense'} (${acc})`;
+      let valText = `${flag} ${curr} ${amt.toFixed(2)}`;
+
+      if (t.type === 'Loan Payment') title = `Loan Paid: (${acc})`;
       if (t.type === 'International Transfer' || t.type === 'Internal Transfer' || t.type === 'Outward Expense') {
-        title = `${t.type} Fee`;
-        const feeInSar = KSA_ACCOUNTS.includes(t.from_account || t.payment_method) ? fee : (fee / currentRate);
-        valText = `SAR ${feeInSar.toFixed(2)} (Fee)`;
+        title = `${t.type} Fee (${acc})`;
+        valText = `${flag} ${curr} ${fee.toFixed(2)} (Fee)`;
       }
 
       return `
