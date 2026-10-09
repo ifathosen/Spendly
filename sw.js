@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spendly-v15.0';
+const CACHE_NAME = 'spendly-v16.0';
 
 
 const ASSETS = [
