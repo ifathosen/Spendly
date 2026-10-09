@@ -136,6 +136,7 @@
               <option value="BRAC">BRAC</option>
               <option value="EBL">EBL</option>
               <option value="Pubali">Pubali</option>
+              <option value="bKash">bKash</option>
             </optgroup>
           </select>
 
@@ -180,7 +181,7 @@
         <p class="text-[10px] text-slate-400 text-right" id="loan-goal-status-text">0% Paid this month</p>
       </div>
 
-      <!-- RECEIVABLES & PAYABLES (ধার-দেনা ও পাওনা) SECTION -->
+      <!-- RECEIVABLES & PAYABLES SECTION -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
         <div class="flex items-center justify-between">
           <h3 class="text-xs font-bold text-white uppercase tracking-wider"><i class="fa-solid fa-hand-holding-dollar text-emerald-400 mr-1.5"></i> Receivables & Payables (ধার-দেনা)</h3>
@@ -239,7 +240,7 @@
 
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
         <div class="flex justify-between items-center mb-3">
-          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">BD Bank Accounts</h3>
+          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">BD Bank & Wallet Accounts</h3>
           <span class="text-[10px] text-emerald-400 font-semibold">Live Tracked</span>
         </div>
         <div id="bd-bank-accounts-grid" class="grid grid-cols-2 gap-2"></div>
@@ -340,6 +341,7 @@
               <option value="BRAC">BRAC Bank</option>
               <option value="EBL">EBL</option>
               <option value="Pubali">Pubali Bank</option>
+              <option value="bKash">bKash Wallet</option>
             </optgroup>
           </select>
         </div>
@@ -383,6 +385,7 @@
                 <option value="BRAC">BRAC</option>
                 <option value="EBL">EBL</option>
                 <option value="Pubali">Pubali</option>
+                <option value="bKash">bKash</option>
               </select>
             </div>
           </div>
@@ -404,7 +407,7 @@
           </div>
         </div>
 
-        <!-- OUTWARD FIELDS CONTAINER WITH CREDIT / DUE OPTION -->
+        <!-- OUTWARD FIELDS CONTAINER -->
         <div id="outward-fields-container" class="hidden space-y-2.5 p-3 bg-slate-950/60 border border-rose-500/30 rounded-2xl">
           <div class="grid grid-cols-2 gap-2">
             <div>
@@ -416,6 +419,7 @@
                 <option value="BRAC">BRAC</option>
                 <option value="EBL">EBL</option>
                 <option value="Pubali">Pubali</option>
+                <option value="bKash">bKash</option>
               </select>
             </div>
             <div>
@@ -442,7 +446,6 @@
             </div>
           </div>
 
-          <!-- PAYMENT STATUS TOGGLE (NOGOD VS BAKI) -->
           <div>
             <label class="block text-[10px] font-bold text-amber-400 uppercase mb-1">Payment Status (পরিশোধের অবস্থা)</label>
             <select id="outward-payment-status" onchange="toggleOutwardCreditFields(this.value)" class="w-full px-2.5 py-1.5 bg-slate-900 border border-amber-500/50 rounded-xl text-xs text-white font-bold">
@@ -451,7 +454,6 @@
             </select>
           </div>
 
-          <!-- CONDITIONAL CREDIT / DUE FIELDS -->
           <div id="outward-credit-fields" class="hidden space-y-2 pt-1 border-t border-slate-800">
             <div>
               <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Friend Name (কার কাছে পাওনা?)</label>
