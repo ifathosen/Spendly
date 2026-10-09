@@ -68,8 +68,6 @@ async function loadTransactions() {
   renderAnalyticsChart(allTransactions);
   renderBudgets(allTransactions);
   updateMetricsAndAccounts(allTransactions);
-
-  if (document.getElementById('trans-count-badge')) document.getElementById('trans-count-badge').innerText = `${allTransactions.length} Items`;
 }
 
 function updateMetricsAndAccounts(transactions) {
@@ -268,13 +266,11 @@ function renderTodayDashboardList(transactions) {
   container.innerHTML = todayTrans.map(t => createItemHTML(t)).join('');
 }
 
-window.applyFiltersAndRender = function() {
-  const container = document.getElementById('all-transactions-list');
-  if (!container) return;
-
+// GET FILTERED LIST HELPER FOR SCREEN & PDF
+function getFilteredTransactions() {
   let filtered = [...allTransactions];
   const searchQ = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
-  const currencyFilter = document.getElementById('currency-filter')?.value || 'ALL';
+  const selectedAccount = document.getElementById('account-filter')?.value || 'ALL_ACCOUNTS';
   const sortBy = document.getElementById('sort-by-select')?.value || 'newest';
   const fromDate = document.getElementById('filter-from-date')?.value;
   const toDate = document.getElementById('filter-to-date')?.value;
@@ -283,16 +279,16 @@ window.applyFiltersAndRender = function() {
     filtered = filtered.filter(t => 
       (t.category && t.category.toLowerCase().includes(searchQ)) || 
       (t.payment_method && t.payment_method.toLowerCase().includes(searchQ)) || 
-      (t.type && t.type.toLowerCase().includes(searchQ)) ||
-      (t.from_account && t.from_account.toLowerCase().includes(searchQ)) ||
-      (t.to_account && t.to_account.toLowerCase().includes(searchQ))
+      (t.type && t.type.toLowerCase().includes(searchQ))
     );
   }
 
-  if (currencyFilter === 'SAR') {
-    filtered = filtered.filter(t => KSA_ACCOUNTS.includes(t.payment_method) || KSA_ACCOUNTS.includes(t.from_account));
-  } else if (currencyFilter === 'BDT') {
-    filtered = filtered.filter(t => BD_ACCOUNTS.includes(t.payment_method) || BD_ACCOUNTS.includes(t.from_account) || BD_ACCOUNTS.includes(t.to_account));
+  if (selectedAccount !== 'ALL_ACCOUNTS') {
+    filtered = filtered.filter(t => 
+      t.payment_method === selectedAccount || 
+      t.from_account === selectedAccount || 
+      t.to_account === selectedAccount
+    );
   }
 
   if (fromDate) filtered = filtered.filter(t => (t.created_at ? t.created_at.split('T')[0] : '') >= fromDate);
@@ -302,11 +298,98 @@ window.applyFiltersAndRender = function() {
   else if (sortBy === 'oldest') filtered.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
   else if (sortBy === 'highest') filtered.sort((a, b) => (parseFloat(b.amount) || 0) - (parseFloat(a.amount) || 0));
 
+  return filtered;
+}
+
+window.applyFiltersAndRender = function() {
+  const container = document.getElementById('all-transactions-list');
+  if (!container) return;
+
+  const filtered = getFilteredTransactions();
+
+  if (document.getElementById('trans-count-badge')) {
+    document.getElementById('trans-count-badge').innerText = `${filtered.length} Items`;
+  }
+
   if (!filtered.length) {
     container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">No matching records found.</p>`;
     return;
   }
   container.innerHTML = filtered.map(t => createItemHTML(t)).join('');
+};
+
+// DOWNLOAD CUSTOM PDF REPORT
+window.downloadPDFReport = function() {
+  const fromDate = document.getElementById('filter-from-date')?.value || 'All';
+  const toDate = document.getElementById('filter-to-date')?.value || 'All';
+  const accFilter = document.getElementById('account-filter')?.value || 'All Accounts';
+
+  const filtered = getFilteredTransactions();
+
+  if (!filtered.length) {
+    alert("No transactions available for export.");
+    return;
+  }
+
+  let rowsHtml = filtered.map((t, idx) => {
+    const isBd = BD_ACCOUNTS.includes(t.payment_method) || BD_ACCOUNTS.includes(t.to_account) || BD_ACCOUNTS.includes(t.from_account);
+    const curr = isBd ? 'BDT' : 'SAR';
+    const amt = parseFloat(t.amount) || 0;
+    const fee = parseFloat(t.remit_fee) || 0;
+    const d = t.created_at ? new Date(t.created_at).toLocaleDateString() : '';
+
+    return `
+      <tr style="border-bottom: 1px solid #e2e8f0; font-size: 10px;">
+        <td style="padding: 6px;">${idx + 1}</td>
+        <td style="padding: 6px;">${d}</td>
+        <td style="padding: 6px;">${t.type}</td>
+        <td style="padding: 6px;">${t.from_account || t.payment_method || '-'} ➔ ${t.to_account || '-'}</td>
+        <td style="padding: 6px; text-align: right; font-weight: bold;">${curr} ${amt.toFixed(2)}</td>
+        <td style="padding: 6px; text-align: right;">${fee.toFixed(2)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const reportElement = document.createElement('div');
+  reportElement.style.padding = '15px';
+  reportElement.style.fontFamily = 'sans-serif';
+  reportElement.style.color = '#0f172a';
+  reportElement.style.backgroundColor = '#ffffff';
+
+  reportElement.innerHTML = `
+    <div style="text-align: center; margin-bottom: 15px; border-bottom: 2px solid #6366f1; padding-bottom: 10px;">
+      <h2 style="margin: 0; color: #4f46e5; font-size: 18px; font-weight: 800;">SPENDLY PRO - FINANCIAL REPORT</h2>
+      <p style="margin: 4px 0 0 0; font-size: 11px; color: #64748b;">Period: ${fromDate} to ${toDate} | Filter Account: ${accFilter}</p>
+    </div>
+    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+      <thead>
+        <tr style="background-color: #f1f5f9; font-size: 10px; text-align: left; border-bottom: 2px solid #cbd5e1;">
+          <th style="padding: 6px;">#</th>
+          <th style="padding: 6px;">Date</th>
+          <th style="padding: 6px;">Type</th>
+          <th style="padding: 6px;">Accounts</th>
+          <th style="padding: 6px; text-align: right;">Amount</th>
+          <th style="padding: 6px; text-align: right;">Fee</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+    <div style="margin-top: 20px; font-size: 9px; color: #94a3b8; text-align: right;">
+      Generated on: ${new Date().toLocaleString()}
+    </div>
+  `;
+
+  const opt = {
+    margin:       8,
+    filename:     `Spendly_Report_${fromDate}_to_${toDate}.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2 },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  html2pdf().set(opt).from(reportElement).save();
 };
 
 function createItemHTML(t) {
@@ -606,21 +689,18 @@ function bindEvents() {
       totalRequired = amount;
     }
 
-    // STRICT INSUFFICIENT BALANCE GUARD (FIXED FOR EDIT MODE)
+    // STRICT INSUFFICIENT BALANCE GUARD
     if (typeVal !== 'Income') {
       let availableBal = window.currentAccBalances ? (window.currentAccBalances[sourceAccount] || 0) : 0;
 
-      // If EDITING an existing record, refund the previous deduction to check valid new limit!
       if (id) {
         const oldRecord = allTransactions.find(t => t.id == id);
         if (oldRecord) {
           let oldSource = oldRecord.from_account || oldRecord.payment_method;
           let oldAmt = parseFloat(oldRecord.amount) || 0;
           let oldFee = parseFloat(oldRecord.remit_fee) || 0;
-          let oldTotalDeducted = oldAmt + oldFee;
-
           if (oldSource === sourceAccount) {
-            availableBal += oldTotalDeducted; // Add back old transaction deduction
+            availableBal += (oldAmt + oldFee);
           }
         }
       }
