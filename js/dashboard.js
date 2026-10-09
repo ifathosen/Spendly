@@ -4,7 +4,7 @@ let chartInstance = null;
 let categoryBudgets = { Food: 0, Rent: 0, Shopping: 0, Bills: 0, General: 0 };
 
 const KSA_ACCOUNTS = ['Cash', 'Al Rajhi', 'SNB', 'Barq', 'Neo', 'Enjaz'];
-const BD_ACCOUNTS = ['IBBL', 'MTB', 'Midland', 'BRAC', 'EBL', 'Pubali'];
+const BD_ACCOUNTS = ['IBBL', 'MTB', 'Midland', 'BRAC', 'EBL', 'Pubali', 'bKash'];
 const MONTHLY_LOAN_GOAL_BDT = 35000;
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -87,7 +87,7 @@ function updateMetricsAndAccounts(transactions) {
   
   const accBalances = {
     'Cash': 0, 'Al Rajhi': 0, 'SNB': 0, 'Barq': 0, 'Neo': 0, 'Enjaz': 0,
-    'IBBL': 0, 'MTB': 0, 'Midland': 0, 'BRAC': 0, 'EBL': 0, 'Pubali': 0
+    'IBBL': 0, 'MTB': 0, 'Midland': 0, 'BRAC': 0, 'EBL': 0, 'Pubali': 0, 'bKash': 0
   };
 
   transactions.forEach(t => {
@@ -128,10 +128,8 @@ function updateMetricsAndAccounts(transactions) {
       const bdFromAcc = t.from_account;
       const ksaToAcc = t.to_account;
 
-      // 1. Deduct BDT from BD Account ALWAYS (Since BD money was sent)
       if (accBalances.hasOwnProperty(bdFromAcc)) accBalances[bdFromAcc] -= (amt + fee);
 
-      // 2. Add SAR to KSA Account ONLY IF NOT DUE (i.e. INSTANT or COLLECTED)
       if (dueStatus !== 'DUE') {
         if (accBalances.hasOwnProperty(ksaToAcc)) accBalances[ksaToAcc] += convertedAmt;
       }
@@ -179,7 +177,6 @@ function updateMetricsAndAccounts(transactions) {
   }
 }
 
-// RENDER PENDING RECEIVABLES / DUE LIST
 function renderPendingReceivablesList(transactions) {
   const container = document.getElementById('debts-list-container');
   const sarTextEl = document.getElementById('total-pending-sar-text');
@@ -890,7 +887,7 @@ function bindEvents() {
 
       if (res && res.error) {
         console.error("Supabase Error:", res.error);
-        alert(`❌ DB Error: ${res.error.message}\n\nদয়া করে সুপাবেসের SQL Editor-এ গিয়ে ALTER TABLE কোডটি রান করেছেন কিনা নিশ্চিত করুন।`);
+        alert(`❌ DB Error: ${res.error.message}`);
         return;
       }
     }
