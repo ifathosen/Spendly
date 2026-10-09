@@ -536,17 +536,23 @@ function renderPendingReceivablesList(transactions) {
     const sarAmt = parseFloat(t.converted_amount) || 0;
 
     return `
-      <div class="flex items-center justify-between p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs">
-        <div>
-          <div class="font-bold text-white flex items-center gap-1.5 cursor-pointer hover:underline" onclick="openDebtorDetailModal('${t.id}')">
-            <span class="text-indigo-300 font-black">${friendName}</span>
-            <i class="fa-solid fa-circle-info text-[10px] text-indigo-400"></i>
-            <span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 font-bold">বাকি (Pending)</span>
+      <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs space-y-2">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="font-bold text-white flex items-center gap-1.5 cursor-pointer hover:underline" onclick="openDebtorDetailModal('${t.id}')">
+              <span class="text-indigo-300 font-black">${friendName}</span>
+              <i class="fa-solid fa-circle-info text-[10px] text-indigo-400"></i>
+              <span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 font-bold">বাকি</span>
+            </div>
+            <span class="text-[10px] text-slate-400 block mt-0.5">মূল ধার: BDT ${bdtAmt.toFixed(2)}</span>
           </div>
-          <span class="text-[10px] text-slate-400 block">Outward BD: BDT ${bdtAmt.toFixed(2)}</span>
+          <span class="font-bold text-emerald-400 text-sm">SAR ${sarAmt.toFixed(2)}</span>
         </div>
-        <div class="flex items-center gap-2">
-          <span class="font-bold text-emerald-400">SAR ${sarAmt.toFixed(2)}</span>
+
+        <div class="flex items-center justify-end gap-2 pt-1 border-t border-slate-900">
+          <button onclick="openDebtorHistoryModal('${friendName}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded-lg text-[10px] font-bold border border-indigo-500/30 flex items-center gap-1">
+            <i class="fa-solid fa-clock-rotate-left"></i> History
+          </button>
           <button onclick="openCollectModal('${t.id}', '${sarAmt}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-bold shadow">
             Collect SAR
           </button>
@@ -555,6 +561,7 @@ function renderPendingReceivablesList(transactions) {
     `;
   }).join('');
 }
+
 
 window.openDebtorDetailModal = function(transId) {
   const t = allTransactions.find(item => item.id == transId);
@@ -1287,15 +1294,168 @@ function bindEvents() {
     await loadTransactions();
   });
 
-  document.getElementById('budget-form')?.addEventListener('submit', (e) => {
+    document.getElementById('collect-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const uId = currentUser ? currentUser.id : 'local_user';
-    categoryBudgets.Food = parseFloat(document.getElementById('budget-food').value) || 0;
-    categoryBudgets.Rent = parseFloat(document.getElementById('budget-rent').value) || 0;
-    categoryBudgets.Shopping = parseFloat(document.getElementById('budget-shopping').value) || 0;
-    
-    localStorage.setItem(`spendly_budgets_${uId}`, JSON.stringify(categoryBudgets));
-    window.closeBudgetModal();
-    renderBudgets(allTransactions);
+    const transId = document.getElementById('collect-trans-id').value;
+    const totalPendingSar = parseFloat(document.getElementById('collect-total-pending-sar').value) || 0;
+    const collectAmountSar = parseFloat(document.getElementById('collect-amount-input').value) || 0;
+    const targetAcc = document.getElementById('collect-target-acc').value;
+
+    if (collectAmountSar <= 0) {
+      alert("❌ অনুগ্রহ করে সঠিক আদায়কৃত পরিমাণ প্রদান করুন।");
+      return;
+    }
+
+    if (collectAmountSar > totalPendingSar) {
+      alert(`❌ আদায়কৃত পরিমাণ (SAR ${collectAmountSar}) মোট পাওনার (SAR ${totalPendingSar}) চেয়ে বেশি হতে পারবে না।`);
+      return;
+    }
+
+    const originalTrans = allTransactions.find(t => t.id == transId);
+    if (!originalTrans) return;
+
+    const rate = parseFloat(originalTrans.exchange_rate) || 33.0;
+    const remainingSar = totalPendingSar - collectAmountSar;
+
+    if (remainingSar <= 0.001) {
+      const payload = {
+        to_account: targetAcc,
+        due_status: 'COLLECTED'
+      };
+
+      if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
+        const res = await dbClient.from('transactions').update(payload).eq('id', transId);
+        if (res && res.error) {
+          alert("❌ Error: " + res.error.message);
+          return;
+        }
+      }
+    } else {
+      const remainingBdt = remainingSar * rate;
+      
+      const updatePayload = {
+        converted_amount: remainingSar,
+        amount: remainingBdt,
+        due_status: 'DUE'
+      };
+
+      const collectedBdt = collectAmountSar * rate;
+      const insertPayload = {
+        user_id: currentUser ? currentUser.id : 'local_user',
+        title: 'Outward Expense',
+        type: 'Outward Expense',
+        category: originalTrans.category || 'Outward',
+        amount: collectedBdt,
+        converted_amount: collectAmountSar,
+        exchange_rate: rate,
+        from_account: originalTrans.from_account || 'IBBL',
+        to_account: targetAcc,
+        due_status: 'COLLECTED',
+        debtor_name: originalTrans.debtor_name,
+        debtor_phone: originalTrans.debtor_phone,
+        remit_fee: 0,
+        created_at: new Date().toISOString()
+      };
+
+      if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
+        await dbClient.from('transactions').update(updatePayload).eq('id', transId);
+        await dbClient.from('transactions').insert([insertPayload]);
+      }
+    }
+
+    window.closeCollectModal();
+    await loadTransactions();
   });
-}
+
+// PARTIAL COLLECT & HISTORY COMBINED LOGIC
+window.openCollectModal = function(transId, pendingSar) {
+  const t = allTransactions.find(item => item.id == transId);
+  if (!t) return;
+
+  const pendingAmount = parseFloat(pendingSar) || parseFloat(t.converted_amount) || 0;
+
+  document.getElementById('collect-trans-id').value = transId;
+  document.getElementById('collect-total-pending-sar').value = pendingAmount;
+  document.getElementById('collect-amount-input').value = pendingAmount.toFixed(2);
+
+  document.getElementById('collect-total-pending-text').innerText = `SAR ${pendingAmount.toFixed(2)}`;
+  document.getElementById('collect-modal-subtitle').innerText = `${t.debtor_name || 'পাওনাদার'} এর নিকট থেকে রিয়াল গ্রহণ:`;
+
+  window.updateCollectRemainingPreview();
+  document.getElementById('collect-modal').classList.remove('hidden');
+};
+
+window.closeCollectModal = function() {
+  document.getElementById('collect-modal').classList.add('hidden');
+};
+
+window.updateCollectRemainingPreview = function() {
+  const totalPending = parseFloat(document.getElementById('collect-total-pending-sar').value) || 0;
+  const inputCollect = parseFloat(document.getElementById('collect-amount-input').value) || 0;
+  const remaining = Math.max(0, totalPending - inputCollect);
+
+  const previewEl = document.getElementById('collect-remaining-preview-text');
+  if (previewEl) {
+    previewEl.innerText = `SAR ${remaining.toFixed(2)}`;
+    previewEl.className = remaining > 0 ? "font-bold text-amber-400" : "font-bold text-emerald-400";
+  }
+};
+
+window.openDebtorHistoryModal = function(debtorName) {
+  if (!debtorName) return;
+  
+  const historyTrans = allTransactions.filter(t => 
+    t.debtor_name && t.debtor_name.toLowerCase() === debtorName.toLowerCase()
+  ).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  document.getElementById('debtor-history-name').innerText = `${debtorName} - লেনদেন ইতিহাস`;
+  const listContainer = document.getElementById('debtor-history-list');
+
+  if (!listContainer) return;
+
+  if (!historyTrans.length) {
+    listContainer.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">কোনো লেনদেনের ইতিহাস পাওয়া যায়নি।</p>`;
+  } else {
+    listContainer.innerHTML = historyTrans.map(t => {
+      const isCollection = t.due_status === 'COLLECTED';
+      const amtSar = parseFloat(t.converted_amount) || 0;
+      const amtBdt = parseFloat(t.amount) || 0;
+      const dateStr = t.created_at ? new Date(t.created_at).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short' }) : 'তারিখ নেই';
+
+      if (isCollection) {
+        return `
+          <div class="p-2.5 bg-slate-950 border border-emerald-500/40 rounded-xl text-xs space-y-1">
+            <div class="flex justify-between items-center font-bold text-emerald-400">
+              <span><i class="fa-solid fa-circle-check mr-1"></i> টাকা আদায় (Collected)</span>
+              <span class="text-white">+SAR ${amtSar.toFixed(2)}</span>
+            </div>
+            <div class="flex justify-between items-center text-[10px] text-slate-400">
+              <span>জমা ব্যাংক: ${t.to_account || 'Cash'}</span>
+              <span>${dateStr}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        return `
+          <div class="p-2.5 bg-slate-950 border border-amber-500/40 rounded-xl text-xs space-y-1">
+            <div class="flex justify-between items-center font-bold text-amber-400">
+              <span><i class="fa-solid fa-hand-holding-dollar mr-1"></i> ধার প্রদান (Outward Given)</span>
+              <span class="text-rose-400">-BDT ${amtBdt.toFixed(2)} (SAR ${amtSar.toFixed(2)})</span>
+            </div>
+            <div class="flex justify-between items-center text-[10px] text-slate-400">
+              <span>উৎস: ${t.from_account || 'IBBL'}</span>
+              <span>${dateStr}</span>
+            </div>
+          </div>
+        `;
+      }
+    }).join('');
+  }
+
+  document.getElementById('debtor-history-modal').classList.remove('hidden');
+};
+
+window.closeDebtorHistoryModal = function() {
+  document.getElementById('debtor-history-modal').classList.add('hidden');
+};
+
