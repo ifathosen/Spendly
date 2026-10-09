@@ -186,7 +186,7 @@
       <!-- REMITTANCE ARBITRAGE & PROFIT TRACKER -->
       <div class="bg-slate-900 border border-indigo-500/30 rounded-2xl p-4 space-y-3 text-white">
         <div class="flex items-center justify-between">
-          <h3 class="text-xs font-bold text-emerald-400 uppercase tracking-wider"><i class="fa-solid fa-[#000] fa-repeat mr-1.5"></i> Remittance Arbitrage & Net Profit</h3>
+          <h3 class="text-xs font-bold text-emerald-400 uppercase tracking-wider"><i class="fa-solid fa-repeat mr-1.5"></i> Remittance Arbitrage & Net Profit</h3>
           <span class="text-[10px] text-slate-400 font-semibold">KSA ↔ BD Trading</span>
         </div>
 
@@ -507,7 +507,7 @@
           <div id="outward-credit-fields" class="hidden space-y-2 pt-1 border-t border-slate-800">
             <div>
               <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Friend Name (কার কাছে পাওনা?)</label>
-              <input type="text" id="outward-person-name" placeholder="e.g. Rahim" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
+              <input type="text" id="outward-person-name" placeholder="e.g. Shohel" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
             </div>
             <div>
               <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Phone Number (ঐচ্ছিক)</label>
@@ -543,6 +543,57 @@
 
         <button type="submit" class="w-full py-3 mt-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg transition">Save Transaction</button>
       </form>
+    </div>
+  </div>
+
+  <!-- DEBTOR DETAIL POPUP MODAL -->
+  <div id="debtor-detail-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-indigo-500/30 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-4">
+      <button onclick="closeDebtorDetailModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-lg font-bold">
+          <i class="fa-solid fa-user-gear"></i>
+        </div>
+        <div>
+          <h3 id="debtor-modal-name" class="text-sm font-black text-white">Debtor Name</h3>
+          <p class="text-[11px] text-amber-400 font-semibold"><i class="fa-solid fa-clock-rotate-left mr-1"></i> বাকি লেনদেনের তথ্য</p>
+        </div>
+      </div>
+
+      <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-2.5 text-xs">
+        <div class="flex justify-between items-center">
+          <span class="text-slate-400">মোবাইল নম্বর:</span>
+          <span id="debtor-modal-phone" class="font-bold text-indigo-400">Not provided</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-slate-400">বাংলাদেশে খরচ (BDT):</span>
+          <span id="debtor-modal-bdt" class="font-black text-white">BDT 0.00</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-slate-400">সৌদিতে পাওনা (SAR):</span>
+          <span id="debtor-modal-sar" class="font-black text-emerald-400">SAR 0.00</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-slate-400">এক্সচেঞ্জ রেট:</span>
+          <span id="debtor-modal-rate" class="font-bold text-amber-400">0.0000</span>
+        </div>
+        <div class="flex justify-between items-center pt-2 border-t border-slate-800/80">
+          <span class="text-slate-400">তারিখ ও সময়:</span>
+          <span id="debtor-modal-date" class="text-[10px] text-slate-300 font-medium">--</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button onclick="closeDebtorDetailModal()" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs">
+          বন্ধ করুন
+        </button>
+        <button id="debtor-modal-collect-btn" class="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg">
+          Collect SAR
+        </button>
+      </div>
     </div>
   </div>
 
