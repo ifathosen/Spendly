@@ -609,31 +609,7 @@
     </div>
   </div>
 
-  <!-- DELETE CONFIRMATION MODAL -->
-  <div id="delete-confirm-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-rose-500/40 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-4">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-2xl bg-rose-500/20 text-rose-500 flex items-center justify-center text-lg font-bold">
-          <i class="fa-solid fa-triangle-exclamation"></i>
-        </div>
-        <div>
-          <h3 class="text-sm font-black text-white">Spendly Pro Confirmation</h3>
-          <p class="text-[11px] text-slate-400">নিরাপত্তা নোটিশ</p>
-        </div>
-      </div>
-
-      <p class="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3 rounded-xl border border-slate-800">
-        আপনি কি সত্যিই এই লেনদেনের এন্ট্রিটি ডিলিট করতে আগ্রহী? এটি মুছে ফেললে আপনার ব্যালেন্স ও হিসেব থেকে স্থায়ীভাবে বাদ যাবে।
-      </p>
-
-      <div class="grid grid-cols-2 gap-2 pt-1">
-        <button onclick="closeDeleteModal()" class="py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs">বাতিল</button>
-        <button id="confirm-delete-btn" class="py-2.5 bg-rose-600 text-white font-bold rounded-xl text-xs shadow-lg">ডিলিট করুন</button>
-      </div>
-    </div>
-  </div>
-
-    <!-- COLLECT SAR MODAL (WITH PARTIAL PAYMENT) -->
+  <!-- COLLECT SAR MODAL (WITH PARTIAL PAYMENT) -->
   <div id="collect-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-3">
       <button onclick="closeCollectModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
@@ -680,20 +656,6 @@
     </div>
   </div>
 
-
-  <!-- BUDGET MODAL -->
-  <div id="budget-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full relative text-white">
-      <button onclick="closeBudgetModal()" class="absolute top-4 right-4 text-slate-400"><i class="fa-solid fa-xmark"></i></button>
-      <h3 class="text-xs font-bold uppercase mb-3 text-indigo-400">Set Monthly Budgets</h3>
-      <form id="budget-form" class="space-y-2">
-        <input type="number" id="budget-food" placeholder="Food Limit (SAR)" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
-        <input type="number" id="budget-rent" placeholder="Rent Limit (SAR)" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
-        <input type="number" id="budget-shopping" placeholder="Shopping Limit (SAR)" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
-        <button type="submit" class="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs" data-i18n="saveBtn">Save Budget</button>
-      </form>
-    </div>
-  </div>
   <!-- DEBTOR HISTORY POPUP MODAL -->
   <div id="debtor-history-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-indigo-500/30 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-3 max-h-[85vh] flex flex-col">
@@ -707,6 +669,44 @@
       <div id="debtor-history-list" class="space-y-2 overflow-y-auto pr-1 flex-1 pt-2"></div>
 
       <button onclick="closeDebtorHistoryModal()" class="w-full py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs" data-i18n="closeBtn">বন্ধ করুন</button>
+    </div>
+  </div>
+
+  <!-- DELETE CONFIRMATION MODAL -->
+  <div id="delete-confirm-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-rose-500/40 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-rose-500/20 text-rose-500 flex items-center justify-center text-lg font-bold">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div>
+          <h3 class="text-sm font-black text-white">Spendly Pro Confirmation</h3>
+          <p class="text-[11px] text-slate-400">নিরাপত্তা নোটিশ</p>
+        </div>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3 rounded-xl border border-slate-800">
+        আপনি কি সত্যিই এই লেনদেনের এন্ট্রিটি ডিলিট করতে আগ্রহী? এটি মুছে ফেললে আপনার ব্যালেন্স ও হিসেব থেকে স্থায়ীভাবে বাদ যাবে।
+      </p>
+
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button onclick="closeDeleteModal()" class="py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs">বাতিল</button>
+        <button id="confirm-delete-btn" class="py-2.5 bg-rose-600 text-white font-bold rounded-xl text-xs shadow-lg">ডিলিট করুন</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUDGET MODAL -->
+  <div id="budget-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full relative text-white">
+      <button onclick="closeBudgetModal()" class="absolute top-4 right-4 text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+      <h3 class="text-xs font-bold uppercase mb-3 text-indigo-400">Set Monthly Budgets</h3>
+      <form id="budget-form" class="space-y-2">
+        <input type="number" id="budget-food" placeholder="Food Limit (SAR)" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+        <input type="number" id="budget-rent" placeholder="Rent Limit (SAR)" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+        <input type="number" id="budget-shopping" placeholder="Shopping Limit (SAR)" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+        <button type="submit" class="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs" data-i18n="saveBtn">Save Budget</button>
+      </form>
     </div>
   </div>
 
