@@ -378,7 +378,13 @@
           </div>
         </div>
 
+        <!-- International Transfer (KSA -> BD) Fields -->
         <div id="remit-fields-container" class="hidden space-y-2.5 p-3 bg-slate-950/60 border border-indigo-500/30 rounded-2xl">
+          <div>
+            <label class="block text-[10px] font-bold text-indigo-400 uppercase mb-1">Remittance Ref No (অটো রেফারেন্স)</label>
+            <input type="text" id="remit-ref-no" readonly class="w-full px-2.5 py-1.5 bg-slate-900 border border-indigo-500/50 rounded-xl text-xs font-mono font-bold text-indigo-300">
+          </div>
+
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="block text-[10px] font-bold text-rose-400 uppercase mb-1">Sender Account (KSA)</label>
@@ -412,7 +418,7 @@
             </div>
             <div>
               <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Rate (1 SAR = BDT)</label>
-              <input type="number" step="0.0001" id="remit-exchange-rate" value="32.6868" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-emerald-400">
+              <input type="number" step="0.0001" id="remit-exchange-rate" value="33.5000" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-emerald-400">
             </div>
           </div>
 
@@ -422,7 +428,15 @@
           </div>
         </div>
 
+        <!-- Outward Transfer (BD -> KSA) Fields with Ref Selection -->
         <div id="outward-fields-container" class="hidden space-y-2.5 p-3 bg-slate-950/60 border border-rose-500/30 rounded-2xl">
+          <div>
+            <label class="block text-[10px] font-bold text-amber-400 uppercase mb-1">Select Remittance Ref (কোন ব্যাচ থেকে ফেরত?)</label>
+            <select id="outward-remit-ref-select" onchange="onSelectRemitRefForReturn(this.value)" class="w-full px-2.5 py-1.5 bg-slate-900 border border-amber-500/50 rounded-xl text-xs font-bold text-indigo-300">
+              <option value="">-- রেফারেন্স নির্বাচন করুন --</option>
+            </select>
+          </div>
+
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="block text-[10px] font-bold text-rose-400 uppercase mb-1">From BD Account</label>
@@ -461,7 +475,7 @@
           </div>
 
           <div>
-            <label class="block text-[10px] font-bold text-amber-400 uppercase mb-1">Payment Status (পরিশোধের অবস্থা)</label>
+            <label class="block text-[10px] font-bold text-amber-400 uppercase mb-1">Payment Status</label>
             <select id="outward-payment-status" onchange="toggleOutwardCreditFields(this.value)" class="w-full px-2.5 py-1.5 bg-slate-900 border border-amber-500/50 rounded-xl text-xs font-bold text-white">
               <option value="INSTANT">💵 নগদ (Instant Received in KSA)</option>
               <option value="DUE">⏳ বাকি / ধার (Credit - Will Receive Later)</option>
@@ -470,11 +484,11 @@
 
           <div id="outward-credit-fields" class="hidden space-y-2 pt-1 border-t border-slate-800">
             <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Friend Name (কার কাছে পাওনা?)</label>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Friend Name</label>
               <input type="text" id="outward-person-name" placeholder="e.g. Shohel" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
             </div>
             <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Phone Number (ঐচ্ছিক)</label>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Phone Number</label>
               <input type="text" id="outward-person-phone" placeholder="05XXXXXXXX" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
             </div>
           </div>
