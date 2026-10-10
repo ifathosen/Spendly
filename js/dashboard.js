@@ -465,13 +465,14 @@ window.openArbitrageBreakdownModal = function() {
       const converted = parseFloat(t.converted_amount) || 0;
       const incentive = parseFloat(t.incentive_amount) || 0;
       const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString() : '';
+      const ref = t.ref_no ? ` [Ref: ${t.ref_no}]` : '';
 
       if (isRemit) {
         const totalBdtGained = converted + incentive;
         return `
           <div class="p-2.5 bg-slate-950 border border-emerald-500/30 rounded-xl text-xs space-y-1">
             <div class="flex justify-between items-center">
-              <span class="font-bold text-emerald-400"><i class="fa-solid fa-paper-plane mr-1"></i> Remittance Sent (KSA ➔ BD)</span>
+              <span class="font-bold text-emerald-400"><i class="fa-solid fa-paper-plane mr-1"></i> Remittance Sent${ref}</span>
               <span class="text-[10px] text-slate-400">${dateStr}</span>
             </div>
             <div class="flex justify-between items-center text-[11px] text-slate-300">
@@ -484,7 +485,7 @@ window.openArbitrageBreakdownModal = function() {
         return `
           <div class="p-2.5 bg-slate-950 border border-rose-500/30 rounded-xl text-xs space-y-1">
             <div class="flex justify-between items-center">
-              <span class="font-bold text-rose-400"><i class="fa-solid fa-plane-arrival mr-1"></i> Outward Return (BD ➔ KSA)</span>
+              <span class="font-bold text-rose-400"><i class="fa-solid fa-plane-arrival mr-1"></i> Outward Return${ref}</span>
               <span class="text-[10px] text-slate-400">${dateStr}</span>
             </div>
             <div class="flex justify-between items-center text-[11px] text-slate-300">
@@ -683,6 +684,53 @@ window.closeDebtorHistoryModal = function() {
   document.getElementById('debtor-history-modal').classList.add('hidden');
 };
 
+// AUTO REF NO LOGIC
+function generateRemitRefNo() {
+  const remitCount = allTransactions.filter(t => t.type === 'International Transfer').length;
+  return `REM-${1001 + remitCount}`;
+}
+
+function populateActiveRemitRefDropdown() {
+  const refSelect = document.getElementById('outward-remit-ref-select');
+  if (!refSelect) return;
+
+  const remitTrans = allTransactions.filter(t => t.type === 'International Transfer');
+  const activeBatches = [];
+
+  remitTrans.forEach(rt => {
+    const refNo = rt.ref_no || `REM-${rt.id}`;
+    const sentSar = parseFloat(rt.amount) || 0;
+
+    const returnedTrans = allTransactions.filter(t => t.type === 'Outward Expense' && t.ref_no === refNo);
+    let totalReturnedSar = 0;
+    returnedTrans.forEach(ret => {
+      totalReturnedSar += parseFloat(ret.converted_amount) || 0;
+    });
+
+    const availSar = sentSar - totalReturnedSar;
+    if (availSar > 0.01) {
+      activeBatches.push({ refNo, availSar, rate: rt.exchange_rate });
+    }
+  });
+
+  if (!activeBatches.length) {
+    refSelect.innerHTML = `<option value="">❌ কোনো অ্যাক্টিভ রেফারেন্স নেই</option>`;
+  } else {
+    refSelect.innerHTML = `<option value="">-- রেফারেন্স নির্বাচন করুন --</option>` + 
+      activeBatches.map(b => `<option value="${b.refNo}" data-avail="${b.availSar}">#${b.refNo} (অবশিষ্ট: ${b.availSar.toFixed(2)} SAR)</option>`).join('');
+  }
+}
+
+window.onSelectRemitRefForReturn = function(refNo) {
+  const refSelect = document.getElementById('outward-remit-ref-select');
+  const selectedOption = refSelect.options[refSelect.selectedIndex];
+  const availSar = parseFloat(selectedOption?.getAttribute('data-avail')) || 0;
+
+  if (availSar > 0) {
+    console.log(`Selected Ref: ${refNo}, Available SAR: ${availSar}`);
+  }
+};
+
 // MIDLAND BANK LOAN GOAL PROGRESS TRACKER
 function renderLoanGoalProgress(transactions) {
   const now = new Date();
@@ -789,9 +837,11 @@ window.handleTypeChange = function(selectEl) {
   } else if (typeVal === 'International Transfer') {
     remitContainer.classList.remove('hidden');
     catContainer.classList.add('hidden');
+    document.getElementById('remit-ref-no').value = generateRemitRefNo();
   } else if (typeVal === 'Outward Expense') {
     outwardContainer.classList.remove('hidden');
     catContainer.classList.add('hidden');
+    populateActiveRemitRefDropdown();
   } else {
     standardAccContainer.classList.remove('hidden');
   }
@@ -835,7 +885,8 @@ function getFilteredTransactions() {
       (t.category && t.category.toLowerCase().includes(searchQ)) || 
       (t.payment_method && t.payment_method.toLowerCase().includes(searchQ)) || 
       (t.type && t.type.toLowerCase().includes(searchQ)) ||
-      (t.debtor_name && t.debtor_name.toLowerCase().includes(searchQ))
+      (t.debtor_name && t.debtor_name.toLowerCase().includes(searchQ)) ||
+      (t.ref_no && t.ref_no.toLowerCase().includes(searchQ))
     );
   }
 
@@ -893,7 +944,7 @@ window.downloadPDFReport = function() {
       <tr style="border-bottom: 1px solid #e2e8f0; font-size: 10px;">
         <td style="padding: 6px;">${idx + 1}</td>
         <td style="padding: 6px;">${d}</td>
-        <td style="padding: 6px;">${t.type}</td>
+        <td style="padding: 6px;">${t.type} ${t.ref_no ? `(${t.ref_no})` : ''}</td>
         <td style="padding: 6px;">${t.from_account || t.payment_method || '-'} ➔ ${t.to_account || '-'}</td>
         <td style="padding: 6px; text-align: right; font-weight: bold;">${curr} ${amt.toFixed(2)}</td>
         <td style="padding: 6px; text-align: right;">${fee.toFixed(2)}</td>
@@ -979,7 +1030,8 @@ function createItemHTML(t) {
     icon = 'fa-right-left';
     sign = '';
   } else if (type === 'International Transfer') {
-    title = `Remit: ${t.from_account} ➔ ${t.to_account}`;
+    const refText = t.ref_no ? ` [#${t.ref_no}]` : '';
+    title = `Remit: ${t.from_account} ➔ ${t.to_account}${refText}`;
     const totalBdtReceived = convertedAmt + incentive;
     displayValue = `SAR ${amt.toFixed(2)} ➔ BDT ${totalBdtReceived.toFixed(2)}`;
     badgeColor = 'bg-emerald-500/10 text-emerald-400';
@@ -987,7 +1039,8 @@ function createItemHTML(t) {
     sign = '';
   } else if (type === 'Outward Expense') {
     const friendInfo = t.debtor_name ? ` (${t.debtor_name})` : '';
-    title = `Outward: ${t.from_account} ➔ ${t.to_account}${friendInfo}`;
+    const refText = t.ref_no ? ` [#${t.ref_no}]` : '';
+    title = `Outward: ${t.from_account} ➔ ${t.to_account}${friendInfo}${refText}`;
     displayValue = `BDT ${amt.toFixed(2)} ➔ SAR ${convertedAmt.toFixed(2)}`;
     badgeColor = dueStatus === 'DUE' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400';
     icon = dueStatus === 'DUE' ? 'fa-hourglass-half' : 'fa-plane-arrival';
@@ -1038,13 +1091,15 @@ window.editTransaction = function(id) {
     document.getElementById('remit-sender-acc').value = t.from_account || 'Al Rajhi';
     document.getElementById('remit-receiver-acc').value = t.to_account || 'IBBL';
     document.getElementById('remit-fee').value = t.remit_fee || 0;
-    document.getElementById('remit-exchange-rate').value = t.exchange_rate || 32.6868;
+    document.getElementById('remit-exchange-rate').value = t.exchange_rate || 33.5000;
+    document.getElementById('remit-ref-no').value = t.ref_no || generateRemitRefNo();
   } else if (t.type === 'Outward Expense') {
     document.getElementById('outward-from-acc').value = t.from_account || 'IBBL';
     document.getElementById('outward-to-acc').value = t.to_account || 'Cash';
     document.getElementById('outward-fee').value = t.remit_fee || 0;
     document.getElementById('outward-exchange-rate').value = t.exchange_rate || 33.0000;
     document.getElementById('outward-payment-status').value = t.due_status || 'INSTANT';
+    document.getElementById('outward-remit-ref-select').value = t.ref_no || '';
     
     if (typeof window.toggleOutwardCreditFields === 'function') {
       window.toggleOutwardCreditFields(t.due_status || 'INSTANT');
@@ -1279,6 +1334,7 @@ function bindEvents() {
         due_status: 'COLLECTED',
         debtor_name: originalTrans.debtor_name,
         debtor_phone: originalTrans.debtor_phone,
+        ref_no: originalTrans.ref_no,
         remit_fee: 0,
         created_at: new Date().toISOString()
       };
@@ -1315,6 +1371,7 @@ function bindEvents() {
     let dueStatus = 'INSTANT';
     let debtorName = null;
     let debtorPhone = null;
+    let refNoVal = null;
 
     let sourceAccount = paymentVal;
     let totalRequired = amount;
@@ -1331,7 +1388,8 @@ function bindEvents() {
       fromAcc = document.getElementById('remit-sender-acc').value;
       toAcc = document.getElementById('remit-receiver-acc').value;
       fee = parseFloat(document.getElementById('remit-fee').value) || 0;
-      exchangeRate = parseFloat(document.getElementById('remit-exchange-rate').value) || 32.6868;
+      exchangeRate = parseFloat(document.getElementById('remit-exchange-rate').value) || 33.5000;
+      refNoVal = document.getElementById('remit-ref-no').value || generateRemitRefNo();
       
       convertedAmt = amount * exchangeRate;
       const addIncentive = document.getElementById('remit-incentive-toggle').checked;
@@ -1346,6 +1404,12 @@ function bindEvents() {
       toAcc = document.getElementById('outward-to-acc').value;
       fee = parseFloat(document.getElementById('outward-fee').value) || 0;
       exchangeRate = parseFloat(document.getElementById('outward-exchange-rate').value) || 33.0000;
+      refNoVal = document.getElementById('outward-remit-ref-select').value || null;
+
+      if (!refNoVal && allTransactions.some(t => t.type === 'International Transfer')) {
+        alert("⚠️ অনুগ্রহ করে কোন রেফারেন্স থেকে রিয়াল ফেরত আনা হচ্ছে তা নির্বাচন করুন।");
+        return;
+      }
       
       convertedAmt = exchangeRate > 0 ? (amount / exchangeRate) : 0;
       paymentVal = fromAcc;
@@ -1403,6 +1467,7 @@ function bindEvents() {
       due_status: dueStatus,
       debtor_name: debtorName,
       debtor_phone: debtorPhone,
+      ref_no: refNoVal,
       created_at: fullDateTime
     };
 
