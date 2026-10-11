@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spendly Pro - Capital & Profit Manager</title>
+  <title>Spendly Pro - Remittance & Capital Hub</title>
 
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#070a12">
@@ -59,23 +59,17 @@
 
   <main class="max-w-md mx-auto px-4 pt-4 space-y-4">
 
-    <!-- 1. KSA HUB DASHBOARD -->
+    <!-- 1. CAPITAL & PROFIT DASHBOARD HUB -->
     <section id="tab-dashboard" class="tab-page space-y-4">
+      
+      <!-- FIXED CAPITAL CARD -->
       <div class="bg-gradient-to-br from-indigo-900/80 via-slate-900 to-slate-950 border border-indigo-500/40 rounded-2xl p-5 shadow-xl text-white relative overflow-hidden">
         <div class="flex justify-between items-center mb-1">
-          <span class="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">💼 ফিক্সড ট্রেডিং ক্যাপিটাল (Locked)</span>
+          <span class="text-[10px] font-bold text-indigo-300 uppercase tracking-widest" data-i18n="capitalTitle">💼 ফিক্সড ট্রেডিং ক্যাপিটাল</span>
           <span class="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-extrabold uppercase">Protected</span>
         </div>
-        <div class="text-3xl font-black text-white" id="capital-amount-text">SAR 0.00</div>
-        
-        <div class="mt-2 flex items-center justify-between">
-          <button onclick="openCapitalSetupModal()" class="px-2.5 py-1 bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 rounded-lg text-[10px] font-bold hover:bg-indigo-500/30 transition flex items-center gap-1">
-            <i class="fa-solid fa-pen-to-square"></i>
-            <span>ক্যাপিটাল আপডেট / সেট করুন</span>
-          </button>
-          <span class="text-[10px] text-slate-400">মাসের শুরুতে লক হয়</span>
-        </div>
-        
+        <div class="text-3xl font-black text-white" id="capital-amount-text">SAR 3,000.00</div>
+
         <div class="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-slate-800/80">
           <div onclick="openBankStatementModal('Cash')" class="cursor-pointer p-1 rounded-lg hover:bg-slate-800/50 transition">
             <span class="text-[10px] text-slate-400 font-bold uppercase block">💵 নগদ রিয়াল</span>
@@ -88,22 +82,40 @@
         </div>
       </div>
 
+      <!-- PROFIT WALLET & EXPENSE METRICS -->
+      <div class="grid grid-cols-2 gap-3">
+        <div onclick="openArbitrageBreakdownModal()" class="bg-slate-900 border border-emerald-500/30 rounded-2xl p-3.5 cursor-pointer hover:border-emerald-500/60 transition">
+          <span class="text-[10px] font-bold text-emerald-400 uppercase block" data-i18n="profitWalletTitle">📈 ট্রেডিং প্রফিট ওয়ালেট</span>
+          <div class="text-base font-black text-emerald-400 mt-1" id="total-profit-wallet-bdt">BDT 0.00</div>
+          <span class="text-[10px] font-bold text-indigo-300 block" id="total-profit-wallet-sar">SAR 0.00</span>
+        </div>
+
+        <div onclick="openExpenseBreakdownModal()" class="bg-slate-900 border border-rose-500/30 rounded-2xl p-3.5 cursor-pointer hover:border-rose-500/60 transition">
+          <span class="text-[10px] font-bold text-rose-400 uppercase block" data-i18n="spentFromProfitTitle">🛒 প্রফিট থেকে খরচ</span>
+          <div class="text-base font-black text-rose-400 mt-1" id="total-drawn-expense-sar">SAR 0.00</div>
+          <span class="text-[10px] font-bold text-slate-400 block" id="total-drawn-expense-bdt">BDT 0.00</span>
+        </div>
+      </div>
+
+      <!-- NET AVAILABLE PROFIT CARD -->
+      <div class="bg-slate-900 border border-indigo-500/30 rounded-2xl p-4 flex items-center justify-between text-white shadow-lg">
+        <div>
+          <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block" data-i18n="availProfitTitle">✨ খরচযোগ্য অবশিষ্ট প্রফিট</span>
+          <div class="text-xl font-black text-emerald-400 mt-0.5" id="available-profit-bdt-text">BDT 0.00</div>
+        </div>
+        <div class="text-right">
+          <span class="text-[9px] text-slate-400 uppercase block">SAR Value</span>
+          <span class="text-sm font-black text-indigo-300" id="available-profit-sar-text">SAR 0.00</span>
+        </div>
+      </div>
+
+      <!-- SAUDI BANKS GRID -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">সৌদি ব্যাংকসমূহ</h3>
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5" data-i18n="saudiBanks">সৌদি ব্যাংক ও ক্যাশ ওয়ালেট</h3>
         <div id="bank-accounts-grid" class="grid grid-cols-2 gap-2"></div>
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
-          <span class="text-[10px] font-bold text-emerald-500 uppercase">প্রকৃত ইনকাম</span>
-          <div class="text-sm font-bold text-emerald-500 mt-0.5" id="total-income">+SAR 0.00</div>
-        </div>
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
-          <span class="text-[10px] font-bold text-rose-500 uppercase">প্রকৃত খরচ</span>
-          <div class="text-sm font-bold text-rose-500 mt-0.5" id="total-expense">-SAR 0.00</div>
-        </div>
-      </div>
-
+      <!-- TODAY'S TRANSACTIONS -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-xs font-bold text-white uppercase tracking-wider" data-i18n="todaysTransactions">আজকের লেনদেন</h3>
@@ -124,7 +136,7 @@
       </div>
 
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
-        <input type="text" id="search-input" data-i18n="searchPlaceholder" placeholder="শিরোনাম বা ক্যাটাগরি খুঁজুন..." class="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
+        <input type="text" id="search-input" data-i18n="searchPlaceholder" placeholder="শিরোনাম, ক্যাটাগরি বা রিফ খুঁজুন..." class="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
         
         <div class="grid grid-cols-2 gap-2">
           <select id="account-filter" onchange="window.applyFiltersAndRender()" class="px-2 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-white">
@@ -172,7 +184,6 @@
 
     <!-- 3. ANALYTICS & ARBITRAGE TRACKER TAB -->
     <section id="tab-analytics" class="tab-page hidden space-y-4">
-      <!-- REMITTANCE ARBITRAGE CARD -->
       <div class="bg-slate-900 border border-indigo-500/30 rounded-2xl p-4 space-y-3 text-white">
         <div class="flex items-center justify-between">
           <h3 class="text-xs font-bold text-emerald-400 uppercase tracking-wider" data-i18n="remittanceArbitrage"><i class="fa-solid fa-repeat mr-1.5"></i> রেমিট্যান্স ট্রেডিং প্রফিট</h3>
@@ -204,7 +215,6 @@
         </div>
       </div>
 
-      <!-- RECEIVABLES & PAYABLES -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
         <h3 class="text-xs font-bold text-white uppercase tracking-wider" data-i18n="receivablesPayables"><i class="fa-solid fa-hand-holding-dollar text-emerald-400 mr-1.5"></i> পাওনা ও দেনার হিসাব</h3>
         
@@ -275,7 +285,7 @@
       <h3 id="modal-title-text" class="text-xs font-black uppercase text-indigo-400 mb-2">New Entry</h3>
 
       <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl mb-3 flex items-center justify-between text-xs">
-        <span class="text-slate-400">একাউন্ট ব্যালেন্স:</span>
+        <span class="text-slate-400" data-i18n="availableBal">অবশিষ্ট প্রফিট ব্যালেন্স:</span>
         <span id="modal-selected-acc-bal" class="font-bold text-emerald-400">SAR 0.00</span>
       </div>
 
@@ -285,18 +295,11 @@
         <div>
           <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Transaction Type</label>
           <select id="modal-trans-type" onchange="handleTypeChange(this)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-white">
-            <option value="Expense">Expense (প্রকৃত খরচ)</option>
-            <option value="Income">Income (প্রকৃত ইনকাম)</option>
-            <option value="Loan Payment">Loan Repayment (লোন পরিশোধ)</option>
-            <option value="Internal Transfer">Internal Transfer (Local)</option>
+            <option value="Expense">Personal Expense (ব্যক্তিগত খরচ)</option>
             <option value="International Transfer">International Transfer (KSA ➔ BD)</option>
             <option value="Outward Expense">Outward Transfer (BD ➔ KSA)</option>
-            <option value="CUSTOM">+ Add Custom Type</option>
+            <option value="Internal Transfer">Internal Transfer (Local)</option>
           </select>
-        </div>
-
-        <div id="custom-type-container" class="hidden">
-          <input type="text" id="custom-type-input" placeholder="Enter custom type..." class="w-full px-3 py-2 bg-slate-950 border border-indigo-500 rounded-xl text-xs text-white">
         </div>
 
         <div class="relative">
@@ -474,13 +477,11 @@
         <div id="category-container">
           <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Category</label>
           <select id="modal-trans-category" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
-            <option value="General">General</option>
             <option value="Food">Food</option>
             <option value="Rent">Rent</option>
-            <option value="Salary">Salary</option>
-            <option value="Remittance">Remittance</option>
-            <option value="Shopping">Shopping</option>
             <option value="Bills">Bills</option>
+            <option value="Shopping">Shopping</option>
+            <option value="General">General</option>
           </select>
         </div>
 
@@ -489,78 +490,185 @@
     </div>
   </div>
 
-  <!-- SINGLE BANK STATEMENT MODAL -->
+  <!-- SINGLE BANK STATEMENT POPUP MODAL -->
   <div id="bank-statement-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-indigo-500/30 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-3 max-h-[85vh] flex flex-col">
       <button onclick="closeBankStatementModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+
       <div>
         <h3 id="stmt-modal-bank-name" class="text-base font-black text-indigo-400">Bank Statement</h3>
-        <p class="text-[11px] text-slate-400">ব্যাংক ভিত্তিক লেনদেন বিবরণী</p>
+        <p class="text-[11px] text-slate-400" data-i18n="bankStatementTitle">ব্যাংক ভিত্তিক লেনদেন বিবরণী</p>
       </div>
+
+      <div class="grid grid-cols-2 gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+        <div>
+          <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5" data-i18n="fromDate">শুরুর তারিখ</label>
+          <input type="date" id="stmt-from-date" onchange="renderBankStatementDetails()" class="w-full px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-[10px] text-white">
+        </div>
+        <div>
+          <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5" data-i18n="toDate">শেষের তারিখ</label>
+          <input type="date" id="stmt-to-date" onchange="renderBankStatementDetails()" class="w-full px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-[10px] text-white">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="p-2 bg-slate-950 border border-emerald-500/30 rounded-xl">
+          <span class="text-[9px] text-emerald-400 font-bold uppercase block" data-i18n="totalIn">মোট ইন (জমা)</span>
+          <span id="stmt-total-in" class="font-black text-emerald-400">0.00</span>
+        </div>
+        <div class="p-2 bg-slate-950 border border-rose-500/30 rounded-xl">
+          <span class="text-[9px] text-rose-400 font-bold uppercase block" data-i18n="totalOut">মোট আউট (খরচ)</span>
+          <span id="stmt-total-out" class="font-black text-rose-400">0.00</span>
+        </div>
+      </div>
+
       <div id="stmt-modal-list" class="space-y-2 overflow-y-auto pr-1 flex-1"></div>
-      <button onclick="closeBankStatementModal()" class="w-full py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs">বন্ধ করুন</button>
+
+      <button onclick="closeBankStatementModal()" class="w-full py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs" data-i18n="closeBtn">বন্ধ করুন</button>
     </div>
   </div>
 
-  <!-- BREAKDOWN MODAL -->
+  <!-- BREAKDOWN POPUP MODAL -->
   <div id="breakdown-detail-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-indigo-500/30 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-3 max-h-[85vh] flex flex-col">
       <button onclick="closeBreakdownModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+
       <div>
-        <h3 id="breakdown-modal-title" class="text-sm font-black text-white uppercase tracking-wider">Breakdown</h3>
-        <p id="breakdown-modal-subtitle" class="text-[11px] text-slate-400">বিবরণী</p>
+        <h3 id="breakdown-modal-title" class="text-sm font-black text-white uppercase tracking-wider">Breakdown Details</h3>
+        <p id="breakdown-modal-subtitle" class="text-[11px] text-slate-400">বিবরণী আইটেম</p>
       </div>
+
       <div id="breakdown-modal-list" class="space-y-2 overflow-y-auto pr-1 flex-1"></div>
-      <button onclick="closeBreakdownModal()" class="w-full py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs mt-2">বন্ধ করুন</button>
+
+      <button onclick="closeBreakdownModal()" class="w-full py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs mt-2" data-i18n="closeBtn">বন্ধ করুন</button>
     </div>
   </div>
 
-  <!-- DEBTOR MODAL -->
+  <!-- DEBTOR DETAIL POPUP MODAL -->
   <div id="debtor-detail-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-indigo-500/30 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-4">
       <button onclick="closeDebtorDetailModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-      <h3 id="debtor-modal-name" class="text-sm font-black text-white">Debtor Name</h3>
-      <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-2 text-xs">
-        <div class="flex justify-between"><span class="text-slate-400">BDT:</span><span id="debtor-modal-bdt" class="font-bold text-white">0</span></div>
-        <div class="flex justify-between"><span class="text-slate-400">SAR:</span><span id="debtor-modal-sar" class="font-bold text-emerald-400">0</span></div>
+
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-lg font-bold">
+          <i class="fa-solid fa-user-gear"></i>
+        </div>
+        <div>
+          <h3 id="debtor-modal-name" class="text-sm font-black text-white">Debtor Name</h3>
+          <p class="text-[11px] text-amber-400 font-semibold"><i class="fa-solid fa-clock-rotate-left mr-1"></i> বাকি লেনদেনের তথ্য</p>
+        </div>
       </div>
-      <button onclick="closeDebtorDetailModal()" class="w-full py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs">বন্ধ করুন</button>
+
+      <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-2.5 text-xs">
+        <div class="flex justify-between items-center">
+          <span class="text-slate-400">মোবাইল নম্বর:</span>
+          <span id="debtor-modal-phone" class="font-bold text-indigo-400">Not provided</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-slate-400">বাংলাদেশে খরচ (BDT):</span>
+          <span id="debtor-modal-bdt" class="font-black text-white">BDT 0.00</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-slate-400">সৌদিতে পাওনা (SAR):</span>
+          <span id="debtor-modal-sar" class="font-black text-emerald-400">SAR 0.00</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-slate-400">এক্সচেঞ্জ রেট:</span>
+          <span id="debtor-modal-rate" class="font-bold text-amber-400">0.0000</span>
+        </div>
+        <div class="flex justify-between items-center pt-2 border-t border-slate-800/80">
+          <span class="text-slate-400">তারিখ ও সময়:</span>
+          <span id="debtor-modal-date" class="text-[10px] text-slate-300 font-medium">--</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button onclick="closeDebtorDetailModal()" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs" data-i18n="closeBtn">বন্ধ করুন</button>
+        <button id="debtor-modal-collect-btn" class="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg">Collect SAR</button>
+      </div>
     </div>
   </div>
 
-  <!-- COLLECT MODAL -->
+  <!-- COLLECT SAR MODAL -->
   <div id="collect-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-3">
       <button onclick="closeCollectModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-      <h3 class="text-xs font-black text-emerald-400 uppercase">Receive Pending Money</h3>
+      <h3 class="text-xs font-black uppercase tracking-wider text-emerald-400">Receive Pending Money (আংশিক / পূর্ণ আদায়)</h3>
+      <p class="text-[11px] text-slate-400" id="collect-modal-subtitle">টাকা আদায় বিবরণী</p>
+
       <form id="collect-form" class="space-y-3">
         <input type="hidden" id="collect-trans-id" value="">
         <input type="hidden" id="collect-total-pending-sar" value="0">
-        <div>
-          <label class="block text-[10px] text-slate-400 uppercase mb-1">Received SAR</label>
-          <input type="number" step="0.01" id="collect-amount-input" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-emerald-400 font-bold">
+
+        <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs space-y-1">
+          <div class="flex justify-between text-slate-400">
+            <span>মোট বাকি পাওনা:</span>
+            <span id="collect-total-pending-text" class="font-bold text-amber-400">SAR 0.00</span>
+          </div>
+          <div class="flex justify-between text-slate-400">
+            <span>আদায়ের পর অবশিষ্টাংশ:</span>
+            <span id="collect-remaining-preview-text" class="font-bold text-slate-300">SAR 0.00</span>
+          </div>
         </div>
+
         <div>
-          <label class="block text-[10px] text-slate-400 uppercase mb-1">Received In Account</label>
-          <select id="collect-target-acc" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
-            <option value="Cash">Cash</option>
-            <option value="Al Rajhi">Al Rajhi</option>
-            <option value="SNB">SNB</option>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Received Amount (SAR)</label>
+          <input type="number" step="0.01" id="collect-amount-input" required oninput="updateCollectRemainingPreview()" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm font-bold text-emerald-400 focus:outline-none focus:border-emerald-500" placeholder="0.00">
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Received In (KSA Account)</label>
+          <select id="collect-target-acc" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white font-bold">
+            <option value="Cash">Cash (নগদ রিয়াল)</option>
+            <option value="Al Rajhi">Al Rajhi Bank</option>
+            <option value="SNB">SNB Bank</option>
             <option value="Barq">Barq</option>
+            <option value="Neo">Neo</option>
+            <option value="Enjaz">Enjaz</option>
           </select>
         </div>
-        <button type="submit" class="w-full py-2.5 bg-emerald-600 text-white font-bold rounded-xl text-xs">Confirm</button>
+
+        <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg transition">Confirm & Add to Balance</button>
       </form>
     </div>
   </div>
 
-  <!-- DELETE MODAL -->
+  <!-- DEBTOR HISTORY POPUP MODAL -->
+  <div id="debtor-history-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-indigo-500/30 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-3 max-h-[85vh] flex flex-col">
+      <button onclick="closeDebtorHistoryModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+
+      <div>
+        <h3 id="debtor-history-name" class="text-sm font-black text-indigo-400">Debtor History</h3>
+        <p class="text-[11px] text-slate-400">ধার প্রদান ও টাকা আদায়ে তারিখসহ সময়রেখা</p>
+      </div>
+
+      <div id="debtor-history-list" class="space-y-2 overflow-y-auto pr-1 flex-1 pt-2"></div>
+
+      <button onclick="closeDebtorHistoryModal()" class="w-full py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs" data-i18n="closeBtn">বন্ধ করুন</button>
+    </div>
+  </div>
+
+  <!-- DELETE CONFIRMATION MODAL -->
   <div id="delete-confirm-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-rose-500/40 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-4">
-      <p class="text-xs text-slate-300">আপনি কি সত্যিই এটি ডিলিট করতে চান?</p>
-      <div class="grid grid-cols-2 gap-2">
-        <button onclick="closeDeleteModal()" class="py-2.5 bg-slate-800 text-slate-300 rounded-xl text-xs">বাতিল</button>
-        <button id="confirm-delete-btn" class="py-2.5 bg-rose-600 text-white rounded-xl text-xs">ডিলিট করুন</button>
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-rose-500/20 text-rose-500 flex items-center justify-center text-lg font-bold">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div>
+          <h3 class="text-sm font-black text-white">Spendly Pro Confirmation</h3>
+          <p class="text-[11px] text-slate-400">নিরাপত্তা নোটিশ</p>
+        </div>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3 rounded-xl border border-slate-800">
+        আপনি কি সত্যিই এই লেনদেনের এন্ট্রিটি ডিলিট করতে আগ্রহী? এটি মুছে ফেললে আপনার হিসেব থেকে স্থায়ীভাবে বাদ যাবে।
+      </p>
+
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button onclick="closeDeleteModal()" class="py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs">বাতিল</button>
+        <button id="confirm-delete-btn" class="py-2.5 bg-rose-600 text-white font-bold rounded-xl text-xs shadow-lg">ডিলিট করুন</button>
       </div>
     </div>
   </div>
@@ -615,8 +723,11 @@
 
     function toggleOutwardCreditFields(val) {
       const creditBox = document.getElementById('outward-credit-fields');
-      if (val === 'DUE') creditBox.classList.remove('hidden');
-      else creditBox.classList.add('hidden');
+      if (val === 'DUE') {
+        creditBox.classList.remove('hidden');
+      } else {
+        creditBox.classList.add('hidden');
+      }
     }
   </script>
 </body>
