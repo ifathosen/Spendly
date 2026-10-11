@@ -82,6 +82,8 @@ async function loadTransactions() {
 }
 
 function updateMetricsAndAccounts(transactions) {
+  let ksaPureIncome = 0;
+  let ksaPureExpense = 0;
   let totalBdtFromRemittance = 0;
   let totalBdtSpentForOutward = 0;
   let totalDrawnExpenseSAR = 0;
@@ -102,25 +104,35 @@ function updateMetricsAndAccounts(transactions) {
     const type = t.type;
     const dueStatus = t.due_status || 'INSTANT';
 
-    if (type === 'Expense') {
+    if (type === 'Income') {
+      const acc = t.payment_method || 'Cash';
+      if (accBalances.hasOwnProperty(acc)) accBalances[acc] += amt;
+      if (KSA_ACCOUNTS.includes(acc)) ksaPureIncome += amt;
+
+    } else if (type === 'Expense' || type === 'Loan Payment') {
       const acc = t.payment_method || 'Cash';
       if (accBalances.hasOwnProperty(acc)) accBalances[acc] -= amt;
-
-      if (KSA_ACCOUNTS.includes(acc)) totalDrawnExpenseSAR += amt;
-      else if (BD_ACCOUNTS.includes(acc)) totalDrawnExpenseBDT += amt;
+      if (KSA_ACCOUNTS.includes(acc)) {
+        ksaPureExpense += amt;
+        totalDrawnExpenseSAR += amt;
+      } else if (BD_ACCOUNTS.includes(acc)) {
+        totalDrawnExpenseBDT += amt;
+      }
 
     } else if (type === 'Internal Transfer') {
       const fromAcc = t.from_account || t.payment_method;
       const toAcc = t.to_account;
       if (accBalances.hasOwnProperty(fromAcc)) accBalances[fromAcc] -= (amt + fee);
       if (accBalances.hasOwnProperty(toAcc)) accBalances[toAcc] += amt;
+      if (KSA_ACCOUNTS.includes(fromAcc)) ksaPureExpense += fee;
 
     } else if (type === 'International Transfer') {
       const senderAcc = t.from_account;
       const receiverAcc = t.to_account;
 
       if (accBalances.hasOwnProperty(senderAcc)) accBalances[senderAcc] -= (amt + fee);
-      
+      if (KSA_ACCOUNTS.includes(senderAcc)) ksaPureExpense += fee;
+
       const totalBdtGained = convertedAmt + incentive;
       if (accBalances.hasOwnProperty(receiverAcc)) accBalances[receiverAcc] += totalBdtGained;
 
@@ -159,6 +171,9 @@ function updateMetricsAndAccounts(transactions) {
   let saudiBankTotal = 0;
   KSA_ACCOUNTS.forEach(acc => { if(acc !== 'Cash') saudiBankTotal += accBalances[acc]; });
   if (document.getElementById('dash-bank-total')) document.getElementById('dash-bank-total').innerText = `SAR ${saudiBankTotal.toFixed(2)}`;
+
+  if (document.getElementById('total-income')) document.getElementById('total-income').innerText = `+SAR ${ksaPureIncome.toFixed(2)}`;
+  if (document.getElementById('total-expense')) document.getElementById('total-expense').innerText = `-SAR ${ksaPureExpense.toFixed(2)}`;
 
   if (document.getElementById('total-profit-wallet-bdt')) document.getElementById('total-profit-wallet-bdt').innerText = `BDT ${netTradingProfitBDT.toFixed(2)}`;
   if (document.getElementById('total-profit-wallet-sar')) document.getElementById('total-profit-wallet-sar').innerText = `SAR ${netTradingProfitSAR.toFixed(2)}`;
@@ -296,7 +311,9 @@ window.renderBankStatementDetails = function() {
     let isIn = false;
     let effectAmt = amt;
 
-    if (t.type === 'Internal Transfer' && t.to_account === activeBankForStatement) {
+    if (t.type === 'Income' && t.payment_method === activeBankForStatement) {
+      isIn = true;
+    } else if (t.type === 'Internal Transfer' && t.to_account === activeBankForStatement) {
       isIn = true;
     } else if (t.type === 'International Transfer' && t.to_account === activeBankForStatement) {
       isIn = true;
@@ -337,7 +354,6 @@ window.renderBankStatementDetails = function() {
 function renderArbitrageAndDailyMetrics(transactions) {
   let totalSarSent = 0;
   let totalBdtReceivedFromRemittance = 0;
-  
   let totalBdtSpentForOutward = 0;
   let totalSarReturnedToKsa = 0;
 
@@ -866,6 +882,11 @@ function createItemHTML(t) {
     badgeColor = 'bg-rose-500/10 text-rose-400';
     icon = 'fa-receipt';
     sign = '-';
+  } else if (type === 'Income') {
+    title = `Income: ${t.category || 'General'} (${t.payment_method || 'Cash'})`;
+    badgeColor = 'bg-emerald-500/10 text-emerald-400';
+    icon = 'fa-arrow-down';
+    sign = '+';
   } else if (type === 'Internal Transfer') {
     title = `Transfer: ${t.from_account} ➔ ${t.to_account}`;
     badgeColor = 'bg-indigo-500/10 text-indigo-400';
@@ -905,7 +926,7 @@ function createItemHTML(t) {
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <span class="text-xs font-bold ${type === 'Expense' ? 'text-rose-400' : 'text-white'}">
+        <span class="text-xs font-bold ${type === 'Expense' ? 'text-rose-400' : (type === 'Income' ? 'text-emerald-400' : 'text-white')}">
           ${sign}${displayValue}
         </span>
         <button onclick="editTransaction('${t.id}')" class="text-slate-500 hover:text-indigo-400 text-xs p-1"><i class="fa-solid fa-pen"></i></button>
