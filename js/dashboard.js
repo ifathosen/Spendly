@@ -4,52 +4,9 @@ let chartInstance = null;
 let pendingDeleteId = null;
 let activeBankForStatement = null;
 
+const FIXED_CAPITAL_SAR = 3000.00;
 const KSA_ACCOUNTS = ['Cash', 'Al Rajhi', 'SNB', 'Barq', 'Neo', 'Enjaz'];
 const BD_ACCOUNTS = ['IBBL', 'MTB', 'Midland', 'BRAC', 'EBL', 'Pubali', 'bKash'];
-
-// ==========================================================================
-// [সংকেত ১: মাসিক ক্যাপিটাল লক ও আনলক ম্যানেজমেন্ট]
-// ১. মাসের ১ তারিখ হলে অটোমেটিক আনলক থাকে।
-// ২. আজ প্রথম শুরু করছেন তাই প্রথম সেটআপের জন্য আজকের দিন ফোর্স আনলক করা।
-// ৩. ২ তারিখ থেকে মাস শেষ পর্যন্ত ক্যাপিটাল লক থাকবে।
-// ==========================================================================
-function getLockedCapitalAmount() {
-  const savedCap = localStorage.getItem('spendly_trading_capital');
-  return savedCap ? parseFloat(savedCap) : 0.00; // ডিফল्ট ০, ইউজার সেট করলে সেটি ধরবে
-}
-
-function isCapitalEditableToday() {
-  const today = new Date();
-  const dayOfMonth = today.getDate();
-  
-  // মাসের ১ তারিখ হলে এডিট করা যাবে
-  if (dayOfMonth === 1) return true;
-  
-  // প্রথমবার ব্যবহার শুরু করার জন্য ফোর্স আনলক
-  const isFirstSetupDone = localStorage.getItem('spendly_capital_setup_completed');
-  if (!isFirstSetupDone) return true;
-
-  // ২ তারিখ থেকে মাস শেষ পর্যন্ত লক থাকবে
-  return false; 
-}
-
-// ক্যাপিটাল সেটআপ বা আপডেট করার পপআপ ফাংশন
-window.openCapitalSetupModal = function() {
-  if (!isCapitalEditableToday()) {
-    alert("🔒 ব্যবসায়িক মূলধন বর্তমানে লক করা আছে। এটি কেবল মাসের ১ তারিখে পরিবর্তন করা যাবে।");
-    return;
-  }
-  
-  const currentCap = getLockedCapitalAmount();
-  const inputCap = prompt("চলতি মাসের জন্য ট্রেডিং ইনভেস্টমেন্ট অ্যামাউন্ট (SAR) লিখুন:", currentCap || "3000");
-  
-  if (inputCap !== null && !isNaN(inputCap) && parseFloat(inputCap) >= 0) {
-    localStorage.setItem('spendly_trading_capital', parseFloat(inputCap));
-    localStorage.setItem('spendly_capital_setup_completed', 'true');
-    alert(`✅ চলতি মাসের ইনভেস্টমেন্ট SAR ${parseFloat(inputCap).toFixed(2)} হিসেবে সফলভাবে সেট ও লক করা হয়েছে।`);
-    loadTransactions();
-  }
-};
 
 document.addEventListener('DOMContentLoaded', async () => {
   bindEvents();
@@ -124,10 +81,6 @@ async function loadTransactions() {
   updateMetricsAndAccounts(allTransactions);
 }
 
-// ==========================================================================
-// [সংকেত ২: হিসাব-নিকাশ ও সিঙ্গল অ্যাকাউন্ট গার্ড ক্যালকুলেশন]
-// একই অ্যাকাউন্ট থেকে ব্যবসা ও ব্যক্তিগত খরচ হওয়ায় এখানে "বাস্তব ব্যালেন্স - লকড ক্যাপিটাল" ফর্মুলা দিয়ে ফ্রি ফান্ড বের করা হয়।
-// ==========================================================================
 function updateMetricsAndAccounts(transactions) {
   let totalBdtFromRemittance = 0;
   let totalBdtSpentForOutward = 0;
@@ -200,19 +153,7 @@ function updateMetricsAndAccounts(transactions) {
   window.availableProfitSAR = availableProfitSAR;
   window.availableProfitBDT = availableProfitBDT;
 
-  // ক্যাপিটাল অ্যামাউন্ট ড্যাশবোর্ডে বসানো
-  const currentCapital = getLockedCapitalAmount();
-  if (document.getElementById('capital-amount-text')) {
-    document.getElementById('capital-amount-text').innerText = `SAR ${currentCapital.toFixed(2)}`;
-  }
-
-  // সিঙ্গল অ্যাকাউন্ট গার্ড: মোট রিয়াল ব্যালেন্স থেকে লকড ক্যাপিটাল বাদ দিয়ে ফ্রি ফান্ড হিসাব
-  let totalKsaActualBalance = 0;
-  KSA_ACCOUNTS.forEach(acc => { totalKsaActualBalance += (accBalances[acc] || 0); });
-  
-  const freePersonalFundSAR = totalKsaActualBalance - currentCapital;
-  window.freePersonalFundSAR = freePersonalFundSAR;
-
+  if (document.getElementById('capital-amount-text')) document.getElementById('capital-amount-text').innerText = `SAR ${FIXED_CAPITAL_SAR.toFixed(2)}`;
   if (document.getElementById('dash-cash-total')) document.getElementById('dash-cash-total').innerText = `SAR ${(accBalances['Cash'] || 0).toFixed(2)}`;
   
   let saudiBankTotal = 0;
@@ -432,7 +373,7 @@ window.openExpenseBreakdownModal = function() {
   const expenses = allTransactions.filter(t => t.type === 'Expense');
 
   document.getElementById('breakdown-modal-title').innerText = "প্রফিট থেকে খরচের বিবরণী";
-  document.getElementById('breakdown-modal-subtitle').innerText = `সকল ব্যক্তিগত খরচ (মূলধন মুক্ত)`;
+  document.getElementById('breakdown-modal-subtitle').innerText = `সকল ব্যক্তিগত খরচ`;
 
   const container = document.getElementById('breakdown-modal-list');
   if (!expenses.length) {
@@ -1189,10 +1130,6 @@ function bindEvents() {
     await loadTransactions();
   });
 
-  // ==========================================================================
-  // [সংকেত ৩: ফর্ম সাবমিট ও মূলধন ভাঙার বিরুদ্ধে গার্ড চেকিং]
-  // এখানে ব্যক্তিগত খরচ (Expense) সাবমিট করার সময় চেক করা হয় যে ব্যবহারকারী লকড ক্যাপিটাল ভাঙছে কি না।
-  // ==========================================================================
   document.getElementById('modal-trans-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('modal-trans-id').value;
@@ -1212,21 +1149,6 @@ function bindEvents() {
     let debtorName = null;
     let debtorPhone = null;
     let refNoVal = null;
-
-    const currentRate = parseFloat(document.getElementById('bd-custom-rate-input')?.value) || parseFloat(localStorage.getItem('spendly_bd_custom_rate')) || 33.0000;
-
-    // [গার্ড চেক]: ব্যক্তিগত খরচ দেওয়ার সময় ফ্রি ফান্ডের বেশি খরচ করতে গেলেই ব্লক করবে
-    if (typeVal === 'Expense') {
-      const isBdAcc = BD_ACCOUNTS.includes(paymentVal);
-      const reqExpenseInSAR = isBdAcc ? (currentRate > 0 ? amount / currentRate : 0) : amount;
-      const currentCapital = getLockedCapitalAmount();
-      const freeFund = window.freePersonalFundSAR || 0;
-
-      if (reqExpenseInSAR > freeFund) {
-        alert(`🛑 খরচ অনুমোদিত নয়!\n\nআপনার ব্যাংকে রক্ষিত মোট টাকার মধ্যে SAR ${currentCapital.toFixed(2)} ব্যবসায়িক মূলধন হিসেবে লক করা আছে।\n\nমূলধন না ভেঙে খরচ করার মতো ফ্রি ফান্ড আছে: SAR ${freeFund.toFixed(2)}`);
-        return;
-      }
-    }
 
     if (typeVal === 'Internal Transfer') {
       fromAcc = document.getElementById('modal-transfer-from').value;
