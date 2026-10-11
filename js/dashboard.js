@@ -1,13 +1,55 @@
 let currentUser = null;
 let allTransactions = [];
 let chartInstance = null;
-let categoryBudgets = { Food: 0, Rent: 0, Shopping: 0, Bills: 0, General: 0 };
 let pendingDeleteId = null;
 let activeBankForStatement = null;
 
 const KSA_ACCOUNTS = ['Cash', 'Al Rajhi', 'SNB', 'Barq', 'Neo', 'Enjaz'];
 const BD_ACCOUNTS = ['IBBL', 'MTB', 'Midland', 'BRAC', 'EBL', 'Pubali', 'bKash'];
-const MONTHLY_LOAN_GOAL_BDT = 35000;
+
+// ==========================================================================
+// [সংকেত ১: মাসিক ক্যাপিটাল লক ও আনলক ম্যানেজমেন্ট]
+// ১. মাসের ১ তারিখ হলে অটোমেটিক আনলক থাকে।
+// ২. আজ প্রথম শুরু করছেন তাই প্রথম সেটআপের জন্য আজকের দিন ফোর্স আনলক করা।
+// ৩. ২ তারিখ থেকে মাস শেষ পর্যন্ত ক্যাপিটাল লক থাকবে।
+// ==========================================================================
+function getLockedCapitalAmount() {
+  const savedCap = localStorage.getItem('spendly_trading_capital');
+  return savedCap ? parseFloat(savedCap) : 0.00; // ডিফল्ট ০, ইউজার সেট করলে সেটি ধরবে
+}
+
+function isCapitalEditableToday() {
+  const today = new Date();
+  const dayOfMonth = today.getDate();
+  
+  // মাসের ১ তারিখ হলে এডিট করা যাবে
+  if (dayOfMonth === 1) return true;
+  
+  // প্রথমবার ব্যবহার শুরু করার জন্য ফোর্স আনলক
+  const isFirstSetupDone = localStorage.getItem('spendly_capital_setup_completed');
+  if (!isFirstSetupDone) return true;
+
+  // ২ তারিখ থেকে মাস শেষ পর্যন্ত লক থাকবে
+  return false; 
+}
+
+// ক্যাপিটাল সেটআপ বা আপডেট করার পপআপ ফাংশন
+window.openCapitalSetupModal = function() {
+  if (!isCapitalEditableToday()) {
+    alert("🔒 ব্যবসায়িক মূলধন বর্তমানে লক করা আছে। এটি কেবল মাসের ১ তারিখে পরিবর্তন করা যাবে।");
+    return;
+  }
+  
+  const currentCap = getLockedCapitalAmount();
+  const inputCap = prompt("চলতি মাসের জন্য ট্রেডিং ইনভেস্টমেন্ট অ্যামাউন্ট (SAR) লিখুন:", currentCap || "3000");
+  
+  if (inputCap !== null && !isNaN(inputCap) && parseFloat(inputCap) >= 0) {
+    localStorage.setItem('spendly_trading_capital', parseFloat(inputCap));
+    localStorage.setItem('spendly_capital_setup_completed', 'true');
+    alert(`✅ চলতি মাসের ইনভেস্টমেন্ট SAR ${parseFloat(inputCap).toFixed(2)} হিসেবে সফলভাবে সেট ও লক করা হয়েছে।`);
+    loadTransactions();
+  }
+};
 
 document.addEventListener('DOMContentLoaded', async () => {
   bindEvents();
@@ -35,7 +77,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('bd-custom-rate-input').value = savedCustomRate;
     }
 
-    loadSavedBudgets();
     await loadTransactions();
 
     const savedTab = localStorage.getItem('spendly_active_tab') || 'dashboard';
@@ -44,13 +85,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error("Init Error:", err);
   }
 });
-
-function isCurrentCalendarMonth(dateString) {
-  if (!dateString) return false;
-  const tDate = new Date(dateString);
-  const now = new Date();
-  return tDate.getFullYear() === now.getFullYear() && tDate.getMonth() === now.getMonth();
-}
 
 function isToday(dateString) {
   if (!dateString) return false;
@@ -85,18 +119,23 @@ async function loadTransactions() {
   renderTodayDashboardList(allTransactions);
   window.applyFiltersAndRender();
   renderAnalyticsChart(allTransactions);
-  renderBudgets(allTransactions);
-  renderLoanGoalProgress(allTransactions);
   renderPendingReceivablesList(allTransactions);
   renderArbitrageAndDailyMetrics(allTransactions);
   updateMetricsAndAccounts(allTransactions);
 }
 
-// STRICT BALANCE & METRICS CALCULATION
+// ==========================================================================
+// [সংকেত ২: হিসাব-নিকাশ ও সিঙ্গল অ্যাকাউন্ট গার্ড ক্যালকুলেশন]
+// একই অ্যাকাউন্ট থেকে ব্যবসা ও ব্যক্তিগত খরচ হওয়ায় এখানে "বাস্তব ব্যালেন্স - লকড ক্যাপিটাল" ফর্মুলা দিয়ে ফ্রি ফান্ড বের করা হয়।
+// ==========================================================================
 function updateMetricsAndAccounts(transactions) {
-  let ksaPureIncome = 0;
-  let ksaPureExpense = 0;
-  
+  let totalBdtFromRemittance = 0;
+  let totalBdtSpentForOutward = 0;
+  let totalDrawnExpenseSAR = 0;
+  let totalDrawnExpenseBDT = 0;
+
+  const currentRate = parseFloat(document.getElementById('bd-custom-rate-input')?.value) || parseFloat(localStorage.getItem('spendly_bd_custom_rate')) || 33.0000;
+
   const accBalances = {
     'Cash': 0, 'Al Rajhi': 0, 'SNB': 0, 'Barq': 0, 'Neo': 0, 'Enjaz': 0,
     'IBBL': 0, 'MTB': 0, 'Midland': 0, 'BRAC': 0, 'EBL': 0, 'Pubali': 0, 'bKash': 0
@@ -110,32 +149,29 @@ function updateMetricsAndAccounts(transactions) {
     const type = t.type;
     const dueStatus = t.due_status || 'INSTANT';
 
-    if (type === 'Income') {
-      const acc = t.payment_method || 'Cash';
-      if (accBalances.hasOwnProperty(acc)) accBalances[acc] += amt;
-      if (KSA_ACCOUNTS.includes(acc)) ksaPureIncome += amt;
-
-    } else if (type === 'Expense' || type === 'Loan Payment') {
+    if (type === 'Expense') {
       const acc = t.payment_method || 'Cash';
       if (accBalances.hasOwnProperty(acc)) accBalances[acc] -= amt;
-      if (KSA_ACCOUNTS.includes(acc)) ksaPureExpense += amt;
+
+      if (KSA_ACCOUNTS.includes(acc)) totalDrawnExpenseSAR += amt;
+      else if (BD_ACCOUNTS.includes(acc)) totalDrawnExpenseBDT += amt;
 
     } else if (type === 'Internal Transfer') {
       const fromAcc = t.from_account || t.payment_method;
       const toAcc = t.to_account;
       if (accBalances.hasOwnProperty(fromAcc)) accBalances[fromAcc] -= (amt + fee);
       if (accBalances.hasOwnProperty(toAcc)) accBalances[toAcc] += amt;
-      if (KSA_ACCOUNTS.includes(fromAcc)) ksaPureExpense += fee;
 
     } else if (type === 'International Transfer') {
       const senderAcc = t.from_account;
       const receiverAcc = t.to_account;
 
       if (accBalances.hasOwnProperty(senderAcc)) accBalances[senderAcc] -= (amt + fee);
-      if (KSA_ACCOUNTS.includes(senderAcc)) ksaPureExpense += fee;
-
+      
       const totalBdtGained = convertedAmt + incentive;
       if (accBalances.hasOwnProperty(receiverAcc)) accBalances[receiverAcc] += totalBdtGained;
+
+      totalBdtFromRemittance += totalBdtGained;
 
     } else if (type === 'Outward Expense') {
       const bdFromAcc = t.from_account;
@@ -146,25 +182,51 @@ function updateMetricsAndAccounts(transactions) {
       if (dueStatus !== 'DUE') {
         if (accBalances.hasOwnProperty(ksaToAcc)) accBalances[ksaToAcc] += convertedAmt;
       }
+
+      totalBdtSpentForOutward += amt;
     }
   });
 
-  const cashTotal = accBalances['Cash'];
-  let saudiBankTotal = 0;
-  KSA_ACCOUNTS.forEach(acc => { if(acc !== 'Cash') saudiBankTotal += accBalances[acc]; });
-  const ksaGrandTotal = cashTotal + saudiBankTotal;
+  const netTradingProfitBDT = totalBdtFromRemittance - totalBdtSpentForOutward;
+  const netTradingProfitSAR = currentRate > 0 ? (netTradingProfitBDT / currentRate) : 0;
 
-  let bdTotalWealthBDT = 0;
-  BD_ACCOUNTS.forEach(acc => { bdTotalWealthBDT += accBalances[acc]; });
+  const drawnExpenseEquivalentSAR = totalDrawnExpenseSAR + (currentRate > 0 ? (totalDrawnExpenseBDT / currentRate) : 0);
+  const drawnExpenseEquivalentBDT = (totalDrawnExpenseSAR * currentRate) + totalDrawnExpenseBDT;
+
+  const availableProfitSAR = Math.max(0, netTradingProfitSAR - drawnExpenseEquivalentSAR);
+  const availableProfitBDT = Math.max(0, netTradingProfitBDT - drawnExpenseEquivalentBDT);
 
   window.currentAccBalances = accBalances;
-  window.bdTotalWealthBDT = bdTotalWealthBDT;
+  window.availableProfitSAR = availableProfitSAR;
+  window.availableProfitBDT = availableProfitBDT;
 
-  if (document.getElementById('total-balance')) document.getElementById('total-balance').innerText = `SAR ${ksaGrandTotal.toFixed(2)}`;
-  if (document.getElementById('dash-cash-total')) document.getElementById('dash-cash-total').innerText = `SAR ${cashTotal.toFixed(2)}`;
+  // ক্যাপিটাল অ্যামাউন্ট ড্যাশবোর্ডে বসানো
+  const currentCapital = getLockedCapitalAmount();
+  if (document.getElementById('capital-amount-text')) {
+    document.getElementById('capital-amount-text').innerText = `SAR ${currentCapital.toFixed(2)}`;
+  }
+
+  // সিঙ্গল অ্যাকাউন্ট গার্ড: মোট রিয়াল ব্যালেন্স থেকে লকড ক্যাপিটাল বাদ দিয়ে ফ্রি ফান্ড হিসাব
+  let totalKsaActualBalance = 0;
+  KSA_ACCOUNTS.forEach(acc => { totalKsaActualBalance += (accBalances[acc] || 0); });
+  
+  const freePersonalFundSAR = totalKsaActualBalance - currentCapital;
+  window.freePersonalFundSAR = freePersonalFundSAR;
+
+  if (document.getElementById('dash-cash-total')) document.getElementById('dash-cash-total').innerText = `SAR ${(accBalances['Cash'] || 0).toFixed(2)}`;
+  
+  let saudiBankTotal = 0;
+  KSA_ACCOUNTS.forEach(acc => { if(acc !== 'Cash') saudiBankTotal += accBalances[acc]; });
   if (document.getElementById('dash-bank-total')) document.getElementById('dash-bank-total').innerText = `SAR ${saudiBankTotal.toFixed(2)}`;
-  if (document.getElementById('total-income')) document.getElementById('total-income').innerText = `+SAR ${ksaPureIncome.toFixed(2)}`;
-  if (document.getElementById('total-expense')) document.getElementById('total-expense').innerText = `-SAR ${ksaPureExpense.toFixed(2)}`;
+
+  if (document.getElementById('total-profit-wallet-bdt')) document.getElementById('total-profit-wallet-bdt').innerText = `BDT ${netTradingProfitBDT.toFixed(2)}`;
+  if (document.getElementById('total-profit-wallet-sar')) document.getElementById('total-profit-wallet-sar').innerText = `SAR ${netTradingProfitSAR.toFixed(2)}`;
+
+  if (document.getElementById('total-drawn-expense-sar')) document.getElementById('total-drawn-expense-sar').innerText = `SAR ${drawnExpenseEquivalentSAR.toFixed(2)}`;
+  if (document.getElementById('total-drawn-expense-bdt')) document.getElementById('total-drawn-expense-bdt').innerText = `BDT ${drawnExpenseEquivalentBDT.toFixed(2)}`;
+
+  if (document.getElementById('available-profit-bdt-text')) document.getElementById('available-profit-bdt-text').innerText = `BDT ${availableProfitBDT.toFixed(2)}`;
+  if (document.getElementById('available-profit-sar-text')) document.getElementById('available-profit-sar-text').innerText = `SAR ${availableProfitSAR.toFixed(2)}`;
 
   const bankGrid = document.getElementById('bank-accounts-grid');
   if (bankGrid) {
@@ -178,6 +240,10 @@ function updateMetricsAndAccounts(transactions) {
       </div>
     `).join('');
   }
+
+  let bdTotalWealthBDT = 0;
+  BD_ACCOUNTS.forEach(acc => { bdTotalWealthBDT += accBalances[acc]; });
+  window.bdTotalWealthBDT = bdTotalWealthBDT;
 
   if (document.getElementById('total-bd-wealth')) document.getElementById('total-bd-wealth').innerText = `BDT ${bdTotalWealthBDT.toFixed(2)}`;
   updateBdWealthSarEquivalent();
@@ -196,7 +262,42 @@ function updateMetricsAndAccounts(transactions) {
   }
 }
 
-// BANK STATEMENT POPUP MODAL
+function generateRemitRefNo() {
+  const remitCount = allTransactions.filter(t => t.type === 'International Transfer').length;
+  return `REM-${1001 + remitCount}`;
+}
+
+function populateActiveRemitRefDropdown() {
+  const refSelect = document.getElementById('outward-remit-ref-select');
+  if (!refSelect) return;
+
+  const remitTrans = allTransactions.filter(t => t.type === 'International Transfer');
+  const activeBatches = [];
+
+  remitTrans.forEach(rt => {
+    const refNo = rt.ref_no || `REM-${rt.id}`;
+    const sentSar = parseFloat(rt.amount) || 0;
+
+    const returnedTrans = allTransactions.filter(t => t.type === 'Outward Expense' && t.ref_no === refNo);
+    let totalReturnedSar = 0;
+    returnedTrans.forEach(ret => {
+      totalReturnedSar += parseFloat(ret.converted_amount) || 0;
+    });
+
+    const availSar = sentSar - totalReturnedSar;
+    if (availSar > 0.01) {
+      activeBatches.push({ refNo, availSar, rate: rt.exchange_rate });
+    }
+  });
+
+  if (!activeBatches.length) {
+    refSelect.innerHTML = `<option value="">❌ কোনো অ্যাক্টিভ রেফারেন্স নেই</option>`;
+  } else {
+    refSelect.innerHTML = `<option value="">-- রেফারেন্স নির্বাচন করুন --</option>` + 
+      activeBatches.map(b => `<option value="${b.refNo}" data-avail="${b.availSar}">#${b.refNo} (অবশিষ্ট: ${b.availSar.toFixed(2)} SAR)</option>`).join('');
+  }
+}
+
 window.openBankStatementModal = function(bankName) {
   activeBankForStatement = bankName;
   document.getElementById('stmt-modal-bank-name').innerText = `${bankName} Statement`;
@@ -254,9 +355,7 @@ window.renderBankStatementDetails = function() {
     let isIn = false;
     let effectAmt = amt;
 
-    if (t.type === 'Income' && t.payment_method === activeBankForStatement) {
-      isIn = true;
-    } else if (t.type === 'Internal Transfer' && t.to_account === activeBankForStatement) {
+    if (t.type === 'Internal Transfer' && t.to_account === activeBankForStatement) {
       isIn = true;
     } else if (t.type === 'International Transfer' && t.to_account === activeBankForStatement) {
       isIn = true;
@@ -294,7 +393,6 @@ window.renderBankStatementDetails = function() {
   listContainer.innerHTML = itemsHtml;
 };
 
-// RENDER ARBITRAGE & DAILY METRICS IN ANALYTICS TAB
 function renderArbitrageAndDailyMetrics(transactions) {
   let totalSarSent = 0;
   let totalBdtReceivedFromRemittance = 0;
@@ -302,20 +400,12 @@ function renderArbitrageAndDailyMetrics(transactions) {
   let totalBdtSpentForOutward = 0;
   let totalSarReturnedToKsa = 0;
 
-  let todayIncomeSAR = 0;
-  let todayIncomeBDT = 0;
-  
-  let todayExpenseSAR = 0;
-  let todayExpenseBDT = 0;
-
-  const currentRate = parseFloat(document.getElementById('bd-custom-rate-input')?.value) || parseFloat(localStorage.getItem('spendly_bd_custom_rate')) || 32.6868;
+  const currentRate = parseFloat(document.getElementById('bd-custom-rate-input')?.value) || parseFloat(localStorage.getItem('spendly_bd_custom_rate')) || 33.0000;
 
   transactions.forEach(t => {
     const amt = parseFloat(t.amount) || 0;
-    const fee = parseFloat(t.remit_fee) || 0;
     const converted = parseFloat(t.converted_amount) || 0;
     const incentive = parseFloat(t.incentive_amount) || 0;
-    const acc = t.from_account || t.payment_method || 'Cash';
 
     if (t.type === 'International Transfer') {
       totalSarSent += amt;
@@ -323,30 +413,6 @@ function renderArbitrageAndDailyMetrics(transactions) {
     } else if (t.type === 'Outward Expense') {
       totalBdtSpentForOutward += amt;
       totalSarReturnedToKsa += converted;
-    }
-
-    if (isToday(t.created_at)) {
-      if (t.type === 'Income') {
-        if (KSA_ACCOUNTS.includes(acc)) {
-          todayIncomeSAR += amt;
-        } else if (BD_ACCOUNTS.includes(acc)) {
-          todayIncomeBDT += amt;
-        }
-      } else if (t.type === 'Expense' || t.type === 'Loan Payment') {
-        if (KSA_ACCOUNTS.includes(acc)) {
-          todayExpenseSAR += amt;
-        } else if (BD_ACCOUNTS.includes(acc)) {
-          todayExpenseBDT += amt;
-        }
-      }
-
-      if (fee > 0) {
-        if (KSA_ACCOUNTS.includes(acc)) {
-          todayExpenseSAR += fee;
-        } else if (BD_ACCOUNTS.includes(acc)) {
-          todayExpenseBDT += fee;
-        }
-      }
     }
   });
 
@@ -360,87 +426,32 @@ function renderArbitrageAndDailyMetrics(transactions) {
 
   if (document.getElementById('arbitrage-profit-bdt')) document.getElementById('arbitrage-profit-bdt').innerText = `BDT ${netProfitBDT.toFixed(2)}`;
   if (document.getElementById('arbitrage-profit-sar')) document.getElementById('arbitrage-profit-sar').innerText = `SAR ${netProfitSAR.toFixed(2)}`;
-
-  if (document.getElementById('daily-pure-income-sar-text')) document.getElementById('daily-pure-income-sar-text').innerText = `SAR ${todayIncomeSAR.toFixed(2)}`;
-  if (document.getElementById('daily-pure-income-bdt-text')) document.getElementById('daily-pure-income-bdt-text').innerText = `BDT ${todayIncomeBDT.toFixed(2)}`;
-  
-  const totalIncomeEquivalentSAR = todayIncomeSAR + (currentRate > 0 ? (todayIncomeBDT / currentRate) : 0);
-  if (document.getElementById('daily-pure-income-equiv-text')) document.getElementById('daily-pure-income-equiv-text').innerText = `Equiv: SAR ${totalIncomeEquivalentSAR.toFixed(2)}`;
-
-  if (document.getElementById('daily-pure-expense-sar-text')) document.getElementById('daily-pure-expense-sar-text').innerText = `SAR ${todayExpenseSAR.toFixed(2)}`;
-  if (document.getElementById('daily-pure-expense-bdt-text')) document.getElementById('daily-pure-expense-bdt-text').innerText = `BDT ${todayExpenseBDT.toFixed(2)}`;
-
-  const totalExpenseEquivalentSAR = todayExpenseSAR + (currentRate > 0 ? (todayExpenseBDT / currentRate) : 0);
-  if (document.getElementById('daily-pure-expense-equiv-text')) document.getElementById('daily-pure-expense-equiv-text').innerText = `Equiv: SAR ${totalExpenseEquivalentSAR.toFixed(2)}`;
 }
 
-// BREAKDOWN MODALS
-window.openIncomeBreakdownModal = function() {
-  const todayIncomes = allTransactions.filter(t => isToday(t.created_at) && t.type === 'Income');
-  
-  document.getElementById('breakdown-modal-title').innerText = "আজকের ইনকাম ব্রেকডাউন";
-  document.getElementById('breakdown-modal-subtitle').innerText = `আলাদা কারেন্সিতে প্রাপ্ত ইনকাম তালিকা`;
+window.openExpenseBreakdownModal = function() {
+  const expenses = allTransactions.filter(t => t.type === 'Expense');
+
+  document.getElementById('breakdown-modal-title').innerText = "প্রফিট থেকে খরচের বিবরণী";
+  document.getElementById('breakdown-modal-subtitle').innerText = `সকল ব্যক্তিগত খরচ (মূলধন মুক্ত)`;
 
   const container = document.getElementById('breakdown-modal-list');
-  if (!todayIncomes.length) {
-    container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">আজকে কোনো ইনকাম এন্ট্রি করা হয়নি।</p>`;
+  if (!expenses.length) {
+    container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">কোনো খরচের এন্ট্রি নেই।</p>`;
   } else {
-    container.innerHTML = todayIncomes.map(t => {
+    container.innerHTML = expenses.map(t => {
+      const amt = parseFloat(t.amount) || 0;
       const acc = t.payment_method || 'Cash';
       const isBdAcc = BD_ACCOUNTS.includes(acc);
       const curr = isBdAcc ? 'BDT' : 'SAR';
       const flag = isBdAcc ? '🇧🇩' : '🇸🇦';
-      const amt = parseFloat(t.amount) || 0;
 
       return `
         <div class="flex items-center justify-between p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs">
           <div>
-            <span class="font-bold text-white block">${t.category || 'General'} (${acc})</span>
-            <span class="text-[10px] text-slate-400">${new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <span class="font-bold text-white block">${t.category || 'Expense'} (${acc})</span>
+            <span class="text-[10px] text-slate-400">${new Date(t.created_at).toLocaleDateString()}</span>
           </div>
-          <span class="font-black text-emerald-400">+${flag} ${curr} ${amt.toFixed(2)}</span>
-        </div>
-      `;
-    }).join('');
-  }
-
-  document.getElementById('breakdown-detail-modal').classList.remove('hidden');
-};
-
-window.openExpenseBreakdownModal = function() {
-  const todayExpenses = allTransactions.filter(t => isToday(t.created_at) && (t.type === 'Expense' || t.type === 'Loan Payment' || (t.remit_fee && parseFloat(t.remit_fee) > 0)));
-
-  document.getElementById('breakdown-modal-title').innerText = "আজকের খরচ ব্রেকডাউন";
-  document.getElementById('breakdown-modal-subtitle').innerText = `আলাদা কারেন্সিতে আসল খরচের তালিকা`;
-
-  const container = document.getElementById('breakdown-modal-list');
-  if (!todayExpenses.length) {
-    container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">আজকে কোনো খরচের এন্ট্রি নেই।</p>`;
-  } else {
-    container.innerHTML = todayExpenses.map(t => {
-      const amt = parseFloat(t.amount) || 0;
-      const fee = parseFloat(t.remit_fee) || 0;
-      const acc = t.from_account || t.payment_method || 'Cash';
-      const isBdAcc = BD_ACCOUNTS.includes(acc);
-      const curr = isBdAcc ? 'BDT' : 'SAR';
-      const flag = isBdAcc ? '🇧🇩' : '🇸🇦';
-
-      let title = `${t.category || 'Expense'} (${acc})`;
-      let valText = `${flag} ${curr} ${amt.toFixed(2)}`;
-
-      if (t.type === 'Loan Payment') title = `Loan Paid: (${acc})`;
-      if (t.type === 'International Transfer' || t.type === 'Internal Transfer' || t.type === 'Outward Expense') {
-        title = `${t.type} Fee (${acc})`;
-        valText = `${flag} ${curr} ${fee.toFixed(2)} (Fee)`;
-      }
-
-      return `
-        <div class="flex items-center justify-between p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs">
-          <div>
-            <span class="font-bold text-white block">${title}</span>
-            <span class="text-[10px] text-slate-400">${new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-          </div>
-          <span class="font-black text-rose-400">-${valText}</span>
+          <span class="font-black text-rose-400">-${flag} ${curr} ${amt.toFixed(2)}</span>
         </div>
       `;
     }).join('');
@@ -453,11 +464,11 @@ window.openArbitrageBreakdownModal = function() {
   const remitTrans = allTransactions.filter(t => t.type === 'International Transfer' || t.type === 'Outward Expense');
 
   document.getElementById('breakdown-modal-title').innerText = "ট্রেডিং প্রফিট ব্রেকডাউন";
-  document.getElementById('breakdown-modal-subtitle').innerText = `Net Trading Gain: BDT ${(document.getElementById('arbitrage-profit-bdt')?.innerText || '0.00')} (${(document.getElementById('arbitrage-profit-sar')?.innerText || 'SAR 0.00')})`;
+  document.getElementById('breakdown-modal-subtitle').innerText = `Net Trading Gain: BDT ${(document.getElementById('arbitrage-profit-bdt')?.innerText || '0.00')}`;
 
   const container = document.getElementById('breakdown-modal-list');
   if (!remitTrans.length) {
-    container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">কোনো রেমিট্যান্স বা আউটওয়ার্ড লেনদেন পাওয়া যায়নি।</p>`;
+    container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">কোনো ট্রেডিং লেনদেন পাওয়া যায়নি।</p>`;
   } else {
     container.innerHTML = remitTrans.map(t => {
       const isRemit = t.type === 'International Transfer';
@@ -465,7 +476,7 @@ window.openArbitrageBreakdownModal = function() {
       const converted = parseFloat(t.converted_amount) || 0;
       const incentive = parseFloat(t.incentive_amount) || 0;
       const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString() : '';
-      const ref = t.ref_no ? ` [Ref: ${t.ref_no}]` : '';
+      const ref = t.ref_no ? ` [#${t.ref_no}]` : '';
 
       if (isRemit) {
         const totalBdtGained = converted + incentive;
@@ -505,7 +516,6 @@ window.closeBreakdownModal = function() {
   document.getElementById('breakdown-detail-modal').classList.add('hidden');
 };
 
-// RECEIVABLES & PAYABLES LIST
 function renderPendingReceivablesList(transactions) {
   const container = document.getElementById('debts-list-container');
   const sarTextEl = document.getElementById('total-pending-sar-text');
@@ -592,7 +602,6 @@ window.closeDebtorDetailModal = function() {
   document.getElementById('debtor-detail-modal').classList.add('hidden');
 };
 
-// PARTIAL COLLECT & HISTORY MODAL LOGIC
 window.openCollectModal = function(transId, pendingSar) {
   const t = allTransactions.find(item => item.id == transId);
   if (!t) return;
@@ -684,87 +693,6 @@ window.closeDebtorHistoryModal = function() {
   document.getElementById('debtor-history-modal').classList.add('hidden');
 };
 
-// AUTO REF NO LOGIC
-function generateRemitRefNo() {
-  const remitCount = allTransactions.filter(t => t.type === 'International Transfer').length;
-  return `REM-${1001 + remitCount}`;
-}
-
-function populateActiveRemitRefDropdown() {
-  const refSelect = document.getElementById('outward-remit-ref-select');
-  if (!refSelect) return;
-
-  const remitTrans = allTransactions.filter(t => t.type === 'International Transfer');
-  const activeBatches = [];
-
-  remitTrans.forEach(rt => {
-    const refNo = rt.ref_no || `REM-${rt.id}`;
-    const sentSar = parseFloat(rt.amount) || 0;
-
-    const returnedTrans = allTransactions.filter(t => t.type === 'Outward Expense' && t.ref_no === refNo);
-    let totalReturnedSar = 0;
-    returnedTrans.forEach(ret => {
-      totalReturnedSar += parseFloat(ret.converted_amount) || 0;
-    });
-
-    const availSar = sentSar - totalReturnedSar;
-    if (availSar > 0.01) {
-      activeBatches.push({ refNo, availSar, rate: rt.exchange_rate });
-    }
-  });
-
-  if (!activeBatches.length) {
-    refSelect.innerHTML = `<option value="">❌ কোনো অ্যাক্টিভ রেফারেন্স নেই</option>`;
-  } else {
-    refSelect.innerHTML = `<option value="">-- রেফারেন্স নির্বাচন করুন --</option>` + 
-      activeBatches.map(b => `<option value="${b.refNo}" data-avail="${b.availSar}">#${b.refNo} (অবশিষ্ট: ${b.availSar.toFixed(2)} SAR)</option>`).join('');
-  }
-}
-
-window.onSelectRemitRefForReturn = function(refNo) {
-  const refSelect = document.getElementById('outward-remit-ref-select');
-  const selectedOption = refSelect.options[refSelect.selectedIndex];
-  const availSar = parseFloat(selectedOption?.getAttribute('data-avail')) || 0;
-
-  if (availSar > 0) {
-    console.log(`Selected Ref: ${refNo}, Available SAR: ${availSar}`);
-  }
-};
-
-// MIDLAND BANK LOAN GOAL PROGRESS TRACKER
-function renderLoanGoalProgress(transactions) {
-  const now = new Date();
-  let totalMidlandCreditsBDT = 0;
-
-  transactions.forEach(t => {
-    if (!t.created_at) return;
-    const tDate = new Date(t.created_at);
-    if (tDate.getFullYear() !== now.getFullYear() || tDate.getMonth() !== now.getMonth()) return;
-
-    const amt = parseFloat(t.amount) || 0;
-    const converted = parseFloat(t.converted_amount) || 0;
-    const incentive = parseFloat(t.incentive_amount) || 0;
-
-    if (t.type === 'Income' && t.payment_method === 'Midland') {
-      totalMidlandCreditsBDT += amt;
-    } else if (t.type === 'Internal Transfer' && t.to_account === 'Midland') {
-      totalMidlandCreditsBDT += amt;
-    } else if (t.type === 'International Transfer' && t.to_account === 'Midland') {
-      totalMidlandCreditsBDT += (converted + incentive);
-    }
-  });
-
-  const percent = Math.min(((totalMidlandCreditsBDT / MONTHLY_LOAN_GOAL_BDT) * 100), 100).toFixed(1);
-
-  const paidEl = document.getElementById('loan-paid-amount');
-  const barEl = document.getElementById('loan-goal-progress-bar');
-  const statusEl = document.getElementById('loan-goal-status-text');
-
-  if (paidEl) paidEl.innerText = `BDT ${totalMidlandCreditsBDT.toFixed(2)}`;
-  if (barEl) barEl.style.width = `${percent}%`;
-  if (statusEl) statusEl.innerText = `${percent}% Saved in Midland Bank this month`;
-}
-
 window.updateBdWealthSarEquivalent = function() {
   const customRateInput = document.getElementById('bd-custom-rate-input');
   const displayEl = document.getElementById('bd-wealth-sar-equivalent');
@@ -784,53 +712,30 @@ window.updateBdWealthSarEquivalent = function() {
 };
 
 window.updateModalBalancePreview = function() {
-  const typeVal = document.getElementById('modal-trans-type').value;
-  let selectedAcc = 'Cash';
-
-  if (typeVal === 'Internal Transfer') {
-    selectedAcc = document.getElementById('modal-transfer-from').value;
-  } else if (typeVal === 'International Transfer') {
-    selectedAcc = document.getElementById('remit-sender-acc').value;
-  } else if (typeVal === 'Outward Expense') {
-    selectedAcc = document.getElementById('outward-from-acc').value;
-  } else {
-    selectedAcc = document.getElementById('modal-trans-payment').value;
-  }
-
-  const bal = window.currentAccBalances ? (window.currentAccBalances[selectedAcc] || 0) : 0;
-  const isBdAcc = BD_ACCOUNTS.includes(selectedAcc);
-  const currCode = isBdAcc ? 'BDT' : 'SAR';
-
-  const currLabel = document.getElementById('modal-currency-label');
-  if (currLabel) currLabel.innerText = currCode;
-
   const previewEl = document.getElementById('modal-selected-acc-bal');
   if (previewEl) {
-    previewEl.innerText = `${currCode} ${bal.toFixed(2)}`;
-    previewEl.className = bal >= 0 ? "font-bold text-emerald-400" : "font-bold text-rose-400";
+    const availBdt = window.availableProfitBDT || 0;
+    const availSar = window.availableProfitSAR || 0;
+    previewEl.innerText = `SAR ${availSar.toFixed(2)} (BDT ${availBdt.toFixed(2)})`;
+    previewEl.className = availSar > 0 ? "font-bold text-emerald-400" : "font-bold text-rose-400";
   }
 };
 
 window.handleTypeChange = function(selectEl) {
   const typeVal = selectEl.value;
-  const customContainer = document.getElementById('custom-type-container');
   const transferAccContainer = document.getElementById('transfer-acc-container');
   const standardAccContainer = document.getElementById('standard-acc-container');
   const remitContainer = document.getElementById('remit-fields-container');
   const outwardContainer = document.getElementById('outward-fields-container');
   const catContainer = document.getElementById('category-container');
 
-  customContainer.classList.add('hidden');
   transferAccContainer.classList.add('hidden');
   standardAccContainer.classList.add('hidden');
   remitContainer.classList.add('hidden');
   outwardContainer.classList.add('hidden');
   catContainer.classList.remove('hidden');
 
-  if (typeVal === 'CUSTOM') {
-    customContainer.classList.remove('hidden');
-    standardAccContainer.classList.remove('hidden');
-  } else if (typeVal === 'Internal Transfer') {
+  if (typeVal === 'Internal Transfer') {
     transferAccContainer.classList.remove('hidden');
     catContainer.classList.add('hidden');
     populateInternalTransferOptions();
@@ -1015,14 +920,10 @@ function createItemHTML(t) {
   let icon = 'fa-arrow-up';
   let sign = '-';
 
-  if (type === 'Income') {
-    badgeColor = 'bg-emerald-500/10 text-emerald-400';
-    icon = 'fa-arrow-down';
-    sign = '+';
-  } else if (type === 'Loan Payment') {
-    title = `Loan Paid: (${t.payment_method || 'Cash'})`;
-    badgeColor = 'bg-indigo-500/10 text-indigo-400';
-    icon = 'fa-calendar-check';
+  if (type === 'Expense') {
+    title = `Personal Expense: ${t.category || 'General'} (${t.payment_method || 'Cash'})`;
+    badgeColor = 'bg-rose-500/10 text-rose-400';
+    icon = 'fa-receipt';
     sign = '-';
   } else if (type === 'Internal Transfer') {
     title = `Transfer: ${t.from_account} ➔ ${t.to_account}`;
@@ -1063,7 +964,7 @@ function createItemHTML(t) {
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <span class="text-xs font-bold ${type === 'Income' ? 'text-emerald-400' : 'text-white'}">
+        <span class="text-xs font-bold ${type === 'Expense' ? 'text-rose-400' : 'text-white'}">
           ${sign}${displayValue}
         </span>
         <button onclick="editTransaction('${t.id}')" class="text-slate-500 hover:text-indigo-400 text-xs p-1"><i class="fa-solid fa-pen"></i></button>
@@ -1126,10 +1027,10 @@ function renderAnalyticsChart(transactions) {
   const ctx = document.getElementById('expenseChart')?.getContext('2d');
   if (!ctx) return;
   
-  const monthlyExpenses = transactions.filter(t => (t.type === 'Expense' || t.type === 'Loan Payment') && isCurrentCalendarMonth(t.created_at));
+  const expenses = transactions.filter(t => t.type === 'Expense');
   
   const catTotals = {};
-  monthlyExpenses.forEach(t => {
+  expenses.forEach(t => {
     catTotals[t.category || 'General'] = (catTotals[t.category || 'General'] || 0) + (parseFloat(t.amount) || 0);
   });
 
@@ -1137,64 +1038,11 @@ function renderAnalyticsChart(transactions) {
   chartInstance = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: Object.keys(catTotals).length ? Object.keys(catTotals) : ['No Data'],
+      labels: Object.keys(catTotals).length ? Object.keys(catTotals) : ['No Expense'],
       datasets: [{ data: Object.values(catTotals).length ? Object.values(catTotals) : [1], backgroundColor: ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6'] }]
     },
     options: { plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } } }
   });
-}
-
-function renderBudgets(transactions) {
-  const container = document.getElementById('budget-tracker-list');
-  if (!container) return;
-
-  const monthlyExpenses = transactions.filter(t => t.type === 'Expense' && isCurrentCalendarMonth(t.created_at));
-  
-  const spentByCat = {};
-  monthlyExpenses.forEach(t => {
-    spentByCat[t.category || 'General'] = (spentByCat[t.category || 'General'] || 0) + (parseFloat(t.amount) || 0);
-  });
-
-  const activeBudgets = Object.keys(categoryBudgets).filter(c => categoryBudgets[c] > 0);
-
-  if (!activeBudgets.length) {
-    container.innerHTML = `<p class="text-xs text-slate-500 py-2 text-center">No budget set for this calendar month.</p>`;
-    return;
-  }
-
-  container.innerHTML = activeBudgets.map(cat => {
-    const limit = categoryBudgets[cat];
-    const spent = spentByCat[cat] || 0;
-    const rawPercent = limit > 0 ? ((spent / limit) * 100).toFixed(1) : 0;
-    const isOver = spent > limit;
-    const barWidth = Math.min(rawPercent, 100);
-
-    return `
-      <div class="space-y-1 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
-        <div class="flex justify-between items-center text-xs">
-          <span class="font-bold text-white">${cat} Budget</span>
-          <span class="font-bold ${isOver ? 'text-rose-400' : 'text-emerald-400'}">
-            ${rawPercent}% ${isOver ? '⚠️' : ''}
-          </span>
-        </div>
-        
-        <div class="flex justify-between text-[11px] text-slate-400 pb-1">
-          <span>Spent: SAR ${spent.toFixed(2)}</span>
-          <span>Limit: SAR ${limit.toFixed(2)}</span>
-        </div>
-
-        <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
-          <div class="h-full ${isOver ? 'bg-rose-500 animate-pulse' : 'bg-indigo-500'} rounded-full transition-all duration-500" style="width: ${barWidth}%"></div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function loadSavedBudgets() {
-  const uId = currentUser ? currentUser.id : 'local_user';
-  const saved = localStorage.getItem(`spendly_budgets_${uId}`);
-  if (saved) categoryBudgets = JSON.parse(saved);
 }
 
 window.switchTab = function(tabName) {
@@ -1232,14 +1080,6 @@ window.openTransactionModal = (presetType = null) => {
 };
 
 window.closeTransactionModal = () => document.getElementById('trans-modal').classList.add('hidden');
-
-window.openBudgetModal = () => {
-  document.getElementById('budget-food').value = categoryBudgets.Food || '';
-  document.getElementById('budget-rent').value = categoryBudgets.Rent || '';
-  document.getElementById('budget-shopping').value = categoryBudgets.Shopping || '';
-  document.getElementById('budget-modal').classList.remove('hidden');
-};
-window.closeBudgetModal = () => document.getElementById('budget-modal').classList.add('hidden');
 
 window.openDeleteModal = function(id) {
   pendingDeleteId = id;
@@ -1349,6 +1189,10 @@ function bindEvents() {
     await loadTransactions();
   });
 
+  // ==========================================================================
+  // [সংকেত ৩: ফর্ম সাবমিট ও মূলধন ভাঙার বিরুদ্ধে গার্ড চেকিং]
+  // এখানে ব্যক্তিগত খরচ (Expense) সাবমিট করার সময় চেক করা হয় যে ব্যবহারকারী লকড ক্যাপিটাল ভাঙছে কি না।
+  // ==========================================================================
   document.getElementById('modal-trans-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('modal-trans-id').value;
@@ -1357,10 +1201,6 @@ function bindEvents() {
     const timeVal = document.getElementById('modal-trans-time').value;
     
     let typeVal = document.getElementById('modal-trans-type').value;
-    if (typeVal === 'CUSTOM') {
-      typeVal = document.getElementById('custom-type-input').value || 'Expense';
-    }
-
     let paymentVal = document.getElementById('modal-trans-payment').value;
     let fromAcc = null;
     let toAcc = null;
@@ -1373,16 +1213,26 @@ function bindEvents() {
     let debtorPhone = null;
     let refNoVal = null;
 
-    let sourceAccount = paymentVal;
-    let totalRequired = amount;
+    const currentRate = parseFloat(document.getElementById('bd-custom-rate-input')?.value) || parseFloat(localStorage.getItem('spendly_bd_custom_rate')) || 33.0000;
+
+    // [গার্ড চেক]: ব্যক্তিগত খরচ দেওয়ার সময় ফ্রি ফান্ডের বেশি খরচ করতে গেলেই ব্লক করবে
+    if (typeVal === 'Expense') {
+      const isBdAcc = BD_ACCOUNTS.includes(paymentVal);
+      const reqExpenseInSAR = isBdAcc ? (currentRate > 0 ? amount / currentRate : 0) : amount;
+      const currentCapital = getLockedCapitalAmount();
+      const freeFund = window.freePersonalFundSAR || 0;
+
+      if (reqExpenseInSAR > freeFund) {
+        alert(`🛑 খরচ অনুমোদিত নয়!\n\nআপনার ব্যাংকে রক্ষিত মোট টাকার মধ্যে SAR ${currentCapital.toFixed(2)} ব্যবসায়িক মূলধন হিসেবে লক করা আছে।\n\nমূলধন না ভেঙে খরচ করার মতো ফ্রি ফান্ড আছে: SAR ${freeFund.toFixed(2)}`);
+        return;
+      }
+    }
 
     if (typeVal === 'Internal Transfer') {
       fromAcc = document.getElementById('modal-transfer-from').value;
       toAcc = document.getElementById('modal-transfer-to').value;
       fee = parseFloat(document.getElementById('internal-transfer-fee').value) || 0;
       paymentVal = fromAcc;
-      sourceAccount = fromAcc;
-      totalRequired = amount + fee;
 
     } else if (typeVal === 'International Transfer') {
       fromAcc = document.getElementById('remit-sender-acc').value;
@@ -1396,8 +1246,6 @@ function bindEvents() {
       if (addIncentive) incentiveAmt = convertedAmt * 0.025;
       
       paymentVal = fromAcc;
-      sourceAccount = fromAcc;
-      totalRequired = amount + fee;
 
     } else if (typeVal === 'Outward Expense') {
       fromAcc = document.getElementById('outward-from-acc').value;
@@ -1413,38 +1261,11 @@ function bindEvents() {
       
       convertedAmt = exchangeRate > 0 ? (amount / exchangeRate) : 0;
       paymentVal = fromAcc;
-      sourceAccount = fromAcc;
-      totalRequired = amount + fee;
 
       dueStatus = document.getElementById('outward-payment-status').value;
       if (dueStatus === 'DUE') {
         debtorName = document.getElementById('outward-person-name').value || 'Friend';
         debtorPhone = document.getElementById('outward-person-phone').value || '';
-      }
-
-    } else if (typeVal === 'Expense' || typeVal === 'Loan Payment') {
-      sourceAccount = paymentVal;
-      totalRequired = amount;
-    }
-
-    if (typeVal !== 'Income') {
-      let availableBal = window.currentAccBalances ? (window.currentAccBalances[sourceAccount] || 0) : 0;
-
-      if (id) {
-        const oldRecord = allTransactions.find(t => t.id == id);
-        if (oldRecord) {
-          let oldSource = oldRecord.from_account || oldRecord.payment_method;
-          let oldAmt = parseFloat(oldRecord.amount) || 0;
-          let oldFee = parseFloat(oldRecord.remit_fee) || 0;
-          if (oldSource === sourceAccount) {
-            availableBal += (oldAmt + oldFee);
-          }
-        }
-      }
-
-      if (totalRequired > availableBal) {
-        alert(`❌ Insufficient Balance in ${sourceAccount}!\n\nAvailable Balance: ${availableBal.toFixed(2)}\nRequired Amount (with fee): ${totalRequired.toFixed(2)}`);
-        return;
       }
     }
 
@@ -1488,17 +1309,5 @@ function bindEvents() {
 
     window.closeTransactionModal();
     await loadTransactions();
-  });
-
-  document.getElementById('budget-form')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const uId = currentUser ? currentUser.id : 'local_user';
-    categoryBudgets.Food = parseFloat(document.getElementById('budget-food').value) || 0;
-    categoryBudgets.Rent = parseFloat(document.getElementById('budget-rent').value) || 0;
-    categoryBudgets.Shopping = parseFloat(document.getElementById('budget-shopping').value) || 0;
-    
-    localStorage.setItem(`spendly_budgets_${uId}`, JSON.stringify(categoryBudgets));
-    window.closeBudgetModal();
-    renderBudgets(allTransactions);
   });
 }
