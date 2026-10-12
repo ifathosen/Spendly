@@ -1,331 +1,384 @@
-<!DOCTYPE html>
-<html lang="bn" class="dark">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arbitrage Pro - KSA & BD Trading Suite</title>
+let currentUser = null;
+let allTransactions = [];
+let chartInstance = null;
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: { extend: { fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] } } }
+document.addEventListener('DOMContentLoaded', async () => {
+  bindEvents();
+
+  try {
+    if (typeof dbClient !== 'undefined' && dbClient && navigator.onLine) {
+      const { data: { user } } = await dbClient.auth.getUser();
+      if (user) currentUser = user;
     }
-  </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-</head>
-<body class="bg-[#070a12] text-slate-100 font-sans min-h-screen pb-24 relative transition-colors duration-300">
+    if (!currentUser) currentUser = { id: 'local_user', email: 'user@arbitrage.local' };
 
-  <!-- Page Loader -->
-  <div id="page-loader" class="fixed inset-0 z-[100] bg-[#070a12] flex flex-col items-center justify-center transition-opacity duration-500">
-    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-indigo-500 flex items-center justify-center shadow-2xl animate-pulse mb-3">
-      <i class="fa-solid fa-repeat text-white text-2xl"></i>
-    </div>
-    <h1 class="text-xl font-black text-white tracking-wider">ARBITRAGE PRO</h1>
-  </div>
+    const savedRate = localStorage.getItem('arbitrage_default_return_rate');
+    if (savedRate && document.getElementById('default-return-rate')) {
+      document.getElementById('default-return-rate').value = savedRate;
+    }
 
-  <!-- Header -->
-  <header class="sticky top-0 z-40 bg-[#070a12]/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-2.5">
-      <div class="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center shadow-lg">
-        <i class="fa-solid fa-repeat text-white text-xs"></i>
-      </div>
-      <span class="text-lg font-black tracking-tight text-white">ট্রেডিং প্রো (KSA ⇄ BD)</span>
-    </div>
+    await loadTransactions();
+    window.switchTab('dashboard');
+  } catch (err) {
+    console.error("Init Error:", err);
+  }
 
-    <div class="flex items-center gap-2">
-      <button onclick="toggleTheme()" class="w-8 h-8 rounded-xl bg-slate-800/50 text-emerald-400 flex items-center justify-center text-xs">
-        <i id="theme-icon" class="fa-solid fa-moon"></i>
-      </button>
-      <button id="logout-btn" class="w-8 h-8 rounded-xl bg-slate-800/50 text-slate-400 hover:text-rose-500 flex items-center justify-center text-xs">
-        <i class="fa-solid fa-arrow-right-from-bracket"></i>
-      </button>
-    </div>
-  </header>
+  const loader = document.getElementById('page-loader');
+  if(loader) {
+    loader.classList.add('opacity-0');
+    setTimeout(() => loader.remove(), 500);
+  }
+});
 
-  <main class="max-w-md mx-auto px-4 pt-4 space-y-4">
+async function loadTransactions() {
+  let cloudData = [];
+  try {
+    if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser && currentUser.id !== 'local_user') {
+      const { data, error } = await dbClient.from('transactions').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+      if (!error && data) cloudData = data;
+    }
+  } catch (e) { console.error(e); }
 
-    <!-- 1. ARBITRAGE DASHBOARD -->
-    <section id="tab-dashboard" class="tab-page space-y-4">
-      <div class="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 border border-emerald-500/30 rounded-2xl p-5 shadow-xl text-white space-y-3">
-        <div class="flex justify-between items-center">
-          <span class="text-[10px] font-bold text-emerald-300 uppercase tracking-widest"><i class="fa-solid fa-chart-line mr-1"></i> নিট ট্রেডিং প্রফিট (Net Trading Profit)</span>
-          <span id="profit-roi-badge" class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">ROI: 0.0%</span>
-        </div>
-        
-        <div class="flex items-baseline justify-between">
-          <div class="text-3xl font-black text-emerald-400" id="dash-net-profit-bdt">BDT 0.00</div>
-          <div class="text-base font-bold text-indigo-400" id="dash-net-profit-sar">SAR 0.00</div>
-        </div>
+  if (cloudData.length === 0) {
+    const cached = localStorage.getItem(`arbitrage_cached_trans_${currentUser.id}`);
+    allTransactions = cached ? JSON.parse(cached) : [];
+  } else {
+    allTransactions = cloudData;
+    localStorage.setItem(`arbitrage_cached_trans_${currentUser.id}`, JSON.stringify(cloudData));
+  }
 
-        <div class="grid grid-cols-2 gap-3 pt-3 border-t border-slate-800">
-          <div>
-            <span class="text-[10px] text-slate-400 font-bold uppercase block">📤 পাঠানো রেমিট্যান্স</span>
-            <span class="text-xs font-bold text-white" id="dash-total-sent-sar">SAR 0.00</span>
-            <span class="text-[10px] text-emerald-400 block" id="dash-total-rec-bdt">(BDT 0.00)</span>
-          </div>
-          <div class="text-right">
-            <span class="text-[10px] text-slate-400 font-bold uppercase block">📥 ফেরত আনা রিয়াল</span>
-            <span class="text-xs font-bold text-white" id="dash-total-returned-sar">SAR 0.00</span>
-            <span class="text-[10px] text-rose-400 block" id="dash-total-spent-bdt">(BDT 0.00)</span>
-          </div>
-        </div>
-      </div>
+  renderArbitrageDashboard(allTransactions);
+  window.applyFiltersAndRender();
+  renderProfitChart(allTransactions);
+}
 
-      <!-- Quick Actions -->
-      <div class="grid grid-cols-2 gap-3">
-        <button onclick="openTransactionModal('INTERNATIONAL_TRANSFER')" class="py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition">
-          <i class="fa-solid fa-paper-plane"></i>
-          <span>রেমিট্যান্স পাঠান (KSA ➔ BD)</span>
-        </button>
-        <button onclick="openTransactionModal('OUTWARD_EXPENSE')" class="py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition">
-          <i class="fa-solid fa-rotate-left"></i>
-          <span>টাকা ফেরত আনুন (BD ➔ KSA)</span>
-        </button>
-      </div>
+function renderArbitrageDashboard(transactions) {
+  let totalSarSent = 0;
+  let totalBdtReceived = 0;
+  let totalSarReturned = 0;
+  let totalBdtSpentForReturn = 0;
 
-      <!-- ACTIVE BATCHES & RECEIVABLES -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
-        <div class="flex items-center justify-between">
-          <h3 class="text-xs font-bold text-white uppercase tracking-wider"><i class="fa-solid fa-layer-group text-emerald-400 mr-1.5"></i> অ্যাক্টিভ ব্যাচ ও বকেয়া পাওনা</h3>
-          <span class="text-[10px] text-slate-400" id="pending-count-badge">0 Pending</span>
-        </div>
-        <div id="active-batches-container" class="space-y-2"></div>
-      </div>
+  transactions.forEach(t => {
+    const amt = parseFloat(t.amount) || 0;
+    const converted = parseFloat(t.converted_amount) || 0;
+    const incentive = parseFloat(t.incentive_amount) || 0;
 
-      <!-- RECENT TRADING HISTORY -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
-        <div class="flex items-center justify-between">
-          <h3 class="text-xs font-bold text-white uppercase tracking-wider"><i class="fa-solid fa-clock-rotate-left text-indigo-400 mr-1.5"></i> সাম্প্রতিক ট্রেডিং ইতিহাস</h3>
-          <button onclick="switchTab('transactions')" class="text-[10px] text-indigo-400 font-bold hover:underline">সকল দেখুন</button>
-        </div>
-        <div id="dashboard-recent-list" class="space-y-2"></div>
-      </div>
-    </section>
+    if (t.type === 'International Transfer') {
+      totalSarSent += amt;
+      totalBdtReceived += (converted + incentive);
+    } else if (t.type === 'Outward Expense') {
+      totalBdtSpentForReturn += amt;
+      totalSarReturned += converted;
+    }
+  });
 
-    <!-- 2. TRANSACTIONS TAB -->
-    <section id="tab-transactions" class="tab-page hidden space-y-3">
-      <div class="flex items-center justify-between">
-        <h2 class="text-sm font-bold text-white uppercase"><i class="fa-solid fa-list-check mr-1.5"></i> ট্রেডিং রেকর্ড হিস্ট্রি</h2>
-        <button onclick="window.downloadPDFReport()" class="px-2.5 py-1 bg-indigo-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg">
-          <i class="fa-solid fa-file-pdf"></i>
-          <span>পিডিএফ রিপোর্ট</span>
-        </button>
-      </div>
+  const netProfitBDT = totalBdtReceived - totalBdtSpentForReturn;
+  const defaultRate = parseFloat(document.getElementById('default-return-rate')?.value) || 33.0;
+  const netProfitSAR = defaultRate > 0 ? (netProfitBDT / defaultRate) : 0;
+  const roi = totalBdtSpentForReturn > 0 ? ((netProfitBDT / totalBdtSpentForReturn) * 100).toFixed(1) : '0.0';
 
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
-        <input type="text" id="search-input" placeholder="রেফারেন্স নম্বর বা নাম খুঁজুন..." class="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
-        
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">শুরুর তারিখ</label>
-            <input type="date" id="filter-from-date" onchange="window.applyFiltersAndRender()" class="w-full px-2 py-1 bg-slate-950 border border-slate-800 rounded-lg text-[11px] text-white">
-          </div>
-          <div>
-            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">শেষের তারিখ</label>
-            <input type="date" id="filter-to-date" onchange="window.applyFiltersAndRender()" class="w-full px-2 py-1 bg-slate-950 border border-slate-800 rounded-lg text-[11px] text-white">
-          </div>
-        </div>
-      </div>
-      
-      <div id="all-transactions-list" class="space-y-2"></div>
-    </section>
+  if (document.getElementById('dash-net-profit-bdt')) document.getElementById('dash-net-profit-bdt').innerText = `BDT ${netProfitBDT.toFixed(2)}`;
+  if (document.getElementById('dash-net-profit-sar')) document.getElementById('dash-net-profit-sar').innerText = `SAR ${netProfitSAR.toFixed(2)}`;
+  if (document.getElementById('profit-roi-badge')) document.getElementById('profit-roi-badge').innerText = `ROI: ${roi}%`;
 
-    <!-- 3. ANALYTICS & ROI TAB -->
-    <section id="tab-analytics" class="tab-page hidden space-y-4">
-      <div class="bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 border border-indigo-500/30 rounded-2xl p-4 text-white space-y-3 shadow-xl">
-        <h3 class="text-xs font-bold text-indigo-400 uppercase tracking-wider"><i class="fa-solid fa-chart-pie mr-1.5"></i> ট্রেডিং অ্যানালিটিক্স ও পারফরম্যান্স</h3>
-        
-        <div class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
-          <div class="flex justify-between items-center text-xs">
-            <span class="text-slate-400">ডিফল্ট এক্সচেঞ্জ রেট (রিটার্ন):</span>
-            <input type="number" step="0.0001" id="default-return-rate" value="33.0000" oninput="saveDefaultReturnRate()" class="w-24 px-2 py-1 bg-slate-900 border border-slate-700 rounded-lg text-right text-xs text-emerald-400 font-bold">
-          </div>
-        </div>
+  if (document.getElementById('dash-total-sent-sar')) document.getElementById('dash-total-sent-sar').innerText = `SAR ${totalSarSent.toFixed(2)}`;
+  if (document.getElementById('dash-total-rec-bdt')) document.getElementById('dash-total-rec-bdt').innerText = `(BDT ${totalBdtReceived.toFixed(2)})`;
+  if (document.getElementById('dash-total-returned-sar')) document.getElementById('dash-total-returned-sar').innerText = `SAR ${totalSarReturned.toFixed(2)}`;
+  if (document.getElementById('dash-total-spent-bdt')) document.getElementById('dash-total-spent-bdt').innerText = `(BDT ${totalBdtSpentForReturn.toFixed(2)})`;
 
-        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
-          <h4 class="text-[11px] font-bold text-slate-400 uppercase mb-3 text-center">মাসিক প্রফিট তুলনা</h4>
-          <div class="w-full max-w-[220px] mx-auto">
-            <canvas id="profitChart"></canvas>
-          </div>
-        </div>
-      </div>
-    </section>
+  renderActiveBatchesAndPendings(transactions);
+  renderRecentList(transactions);
+}
 
-  </main>
+function renderActiveBatchesAndPendings(transactions) {
+  const container = document.getElementById('active-batches-container');
+  const badge = document.getElementById('pending-count-badge');
+  if (!container) return;
 
-  <!-- TRANSACTION MODAL -->
-  <div id="trans-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl">
-      <button onclick="closeTransactionModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-      <h3 id="modal-title-text" class="text-xs font-black uppercase text-emerald-400 mb-3">ট্রেডিং এন্ট্রি</h3>
+  const remitTrans = transactions.filter(t => t.type === 'International Transfer');
+  const activeBatches = [];
 
-      <form id="modal-trans-form" class="space-y-3">
-        <input type="hidden" id="modal-trans-id" value="">
+  remitTrans.forEach(rt => {
+    const refNo = rt.ref_no || `REM-${rt.id}`;
+    const sentSar = parseFloat(rt.amount) || 0;
 
+    const returnedTrans = transactions.filter(t => t.type === 'Outward Expense' && t.ref_no === refNo);
+    let returnedSar = 0;
+    returnedTrans.forEach(ret => { returnedSar += parseFloat(ret.converted_amount) || 0; });
+
+    const availSar = sentSar - returnedSar;
+    activeBatches.push({ refNo, sentSar, availSar, receiver: rt.to_account });
+  });
+
+  const pendingReturns = transactions.filter(t => t.type === 'Outward Expense' && t.due_status === 'DUE');
+  if (badge) badge.innerText = `${pendingReturns.length} Pending`;
+
+  let html = '';
+  if (pendingReturns.length > 0) {
+    html += `<h4 class="text-[10px] font-bold text-amber-400 uppercase mb-2">পাওনা / বাকি কালেকশন (${pendingReturns.length})</h4>`;
+    html += pendingReturns.map(p => `
+      <div class="p-2.5 bg-slate-950 border border-amber-500/30 rounded-xl text-xs flex justify-between items-center">
         <div>
-          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">অপারেশন টাইপ</label>
-          <select id="modal-trans-type" onchange="handleTypeChange(this)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-white">
-            <option value="International Transfer">📤 রেমিট্যান্স পাঠানো (KSA ➔ BD)</option>
-            <option value="Outward Expense">📥 টাকা ফেরত আনা (BD ➔ KSA)</option>
-          </select>
+          <span class="font-bold text-white">${p.debtor_name || 'Friend'} [#${p.ref_no}]</span>
+          <span class="text-[10px] text-slate-400 block">BDT ${parseFloat(p.amount).toFixed(2)} ➔ SAR ${parseFloat(p.converted_amount).toFixed(2)}</span>
         </div>
+        <button onclick="openCollectModal('${p.id}', '${p.converted_amount}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[10px]">
+          Collect
+        </button>
+      </div>
+    `).join('');
+  }
 
-        <!-- Remittance Send Fields -->
-        <div id="remit-fields-container" class="space-y-2.5 p-3 bg-slate-950/60 border border-emerald-500/30 rounded-2xl">
-          <div>
-            <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">রেফারেন্স নম্বর (Auto Ref)</label>
-            <input type="text" id="remit-ref-no" readonly class="w-full px-2.5 py-1.5 bg-slate-900 border border-emerald-500/50 rounded-xl text-xs font-mono font-bold text-emerald-300">
-          </div>
+  if (!html) {
+    html = `<p class="text-xs text-slate-500 py-2 text-center">কোনো বকেয়া বা পেন্ডিং কালেকশন নেই।</p>`;
+  }
+  container.innerHTML = html;
+}
 
-          <div>
-            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">পাঠানো রিয়াল (SAR)</label>
-            <input type="number" step="0.01" id="remit-sar-amount" placeholder="1000.00" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-lg font-black text-emerald-400 focus:outline-none">
-          </div>
+function renderRecentList(transactions) {
+  const container = document.getElementById('dashboard-recent-list');
+  if (!container) return;
 
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-[10px] font-bold text-rose-400 uppercase mb-1">Sender (KSA Account)</label>
-              <select id="remit-sender-acc" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
-                <option value="Al Rajhi">Al Rajhi</option>
-                <option value="SNB">SNB</option>
-                <option value="Barq">Barq</option>
-                <option value="Neo">Neo</option>
-                <option value="Enjaz">Enjaz</option>
-                <option value="Cash">Cash</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">Receiver (BD Account)</label>
-              <select id="remit-receiver-acc" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
-                <option value="IBBL">IBBL</option>
-                <option value="MTB">MTB</option>
-                <option value="Midland">Midland</option>
-                <option value="BRAC">BRAC</option>
-                <option value="EBL">EBL</option>
-                <option value="Pubali">Pubali</option>
-                <option value="bKash">bKash</option>
-              </select>
-            </div>
-          </div>
+  const recent = transactions.slice(0, 5);
+  if (!recent.length) {
+    container.innerHTML = `<p class="text-xs text-slate-500 py-3 text-center">কোনো ট্রেডিং রেকর্ড নেই।</p>`;
+    return;
+  }
 
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Bank Fee (SAR)</label>
-              <input type="number" step="0.01" id="remit-fee" value="0.00" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
-            </div>
-            <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Rate (1 SAR = BDT)</label>
-              <input type="number" step="0.0001" id="remit-exchange-rate" value="32.5000" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-emerald-400">
-            </div>
-          </div>
+  container.innerHTML = recent.map(t => createItemHTML(t)).join('');
+}
 
-          <div class="flex items-center justify-between p-2 bg-slate-900 border border-slate-800 rounded-xl">
-            <span class="text-[11px] font-bold text-emerald-400">+2.5% Gov Incentive</span>
-            <input type="checkbox" id="remit-incentive-toggle" checked class="w-4 h-4 accent-emerald-600 rounded">
-          </div>
+function createItemHTML(t) {
+  const isRemit = t.type === 'International Transfer';
+  const amt = parseFloat(t.amount) || 0;
+  const converted = parseFloat(t.converted_amount) || 0;
+  const incentive = parseFloat(t.incentive_amount) || 0;
+  const refText = t.ref_no ? `[#${t.ref_no}]` : '';
+
+  let title = isRemit ? `Remit: ${t.from_account} ➔ ${t.to_account} ${refText}` : `Return: ${t.from_account} ➔ ${t.to_account} ${refText}`;
+  let valDisplay = isRemit ? `SAR ${amt.toFixed(2)} ➔ BDT ${(converted + incentive).toFixed(2)}` : `BDT ${amt.toFixed(2)} ➔ SAR ${converted.toFixed(2)}`;
+  let badgeColor = isRemit ? 'bg-emerald-500/10 text-emerald-400' : 'bg-indigo-500/10 text-indigo-400';
+  let icon = isRemit ? 'fa-paper-plane' : 'fa-rotate-left';
+
+  return `
+    <div class="flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg ${badgeColor} flex items-center justify-center font-bold">
+          <i class="fa-solid ${icon}"></i>
         </div>
-
-        <!-- Return / Outward Fields -->
-        <div id="outward-fields-container" class="hidden space-y-2.5 p-3 bg-slate-950/60 border border-indigo-500/30 rounded-2xl">
-          <div>
-            <label class="block text-[10px] font-bold text-amber-400 uppercase mb-1">কোন রেফারেন্স থেকে ফেরত আনছেন?</label>
-            <select id="outward-remit-ref-select" onchange="onSelectRemitRefForReturn(this.value)" class="w-full px-2.5 py-1.5 bg-slate-900 border border-amber-500/50 rounded-xl text-xs font-bold text-indigo-300">
-              <option value="">-- রেফারেন্স নির্বাচন করুন --</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">ফেরত পাঠানো টাকা (BDT)</label>
-            <input type="number" step="0.01" id="outward-bdt-amount" placeholder="33000.00" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-lg font-black text-indigo-400 focus:outline-none">
-          </div>
-
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-[10px] font-bold text-rose-400 uppercase mb-1">From BD Account</label>
-              <select id="outward-from-acc" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
-                <option value="IBBL">IBBL</option>
-                <option value="MTB">MTB</option>
-                <option value="Midland">Midland</option>
-                <option value="BRAC">BRAC</option>
-                <option value="EBL">EBL</option>
-                <option value="Pubali">Pubali</option>
-                <option value="bKash">bKash</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">To KSA Account</label>
-              <select id="outward-to-acc" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
-                <option value="Cash">Cash</option>
-                <option value="Al Rajhi">Al Rajhi</option>
-                <option value="SNB">SNB</option>
-                <option value="Barq">Barq</option>
-                <option value="Neo">Neo</option>
-                <option value="Enjaz">Enjaz</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Transfer Fee (BDT)</label>
-              <input type="number" step="0.01" id="outward-fee" value="0.00" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
-            </div>
-            <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Rate (1 SAR = BDT)</label>
-              <input type="number" step="0.0001" id="outward-exchange-rate" value="33.0000" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-rose-400">
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-[10px] font-bold text-amber-400 uppercase mb-1">স্ট্যাটাস</label>
-            <select id="outward-payment-status" onchange="toggleOutwardCreditFields(this.value)" class="w-full px-2.5 py-1.5 bg-slate-900 border border-amber-500/50 rounded-xl text-xs font-bold text-white">
-              <option value="INSTANT">💵 ইনস্ট্যান্ট রিসিভড (Instant Received)</option>
-              <option value="DUE">⏳ বাকি / পাওনা (Pending Collection)</option>
-            </select>
-          </div>
-
-          <div id="outward-credit-fields" class="hidden space-y-2 pt-1 border-t border-slate-800">
-            <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">পাওনাদার নাম</label>
-              <input type="text" id="outward-person-name" placeholder="e.g. Shohel" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white">
-            </div>
-          </div>
+        <div>
+          <h4 class="font-bold text-white">${title}</h4>
+          <span class="text-[10px] text-slate-400">${new Date(t.created_at).toLocaleDateString()}</span>
         </div>
-
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">তারিখ</label>
-            <input type="date" id="modal-trans-date" required class="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
-          </div>
-          <div>
-            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">সময়</label>
-            <input type="time" id="modal-trans-time" required class="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white">
-          </div>
-        </div>
-
-        <button type="submit" class="w-full py-3 mt-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg transition">ট্রেডিং এন্ট্রি সংরক্ষণ করুন</button>
-      </form>
+      </div>
+      <span class="font-black text-white">${valDisplay}</span>
     </div>
-  </div>
+  `;
+}
 
-  <!-- COLLECT SAR MODAL -->
-  <div id="collect-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full relative text-white shadow-2xl space-y-3">
-      <button onclick="closeCollectModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-      <h3 class="text-xs font-black uppercase tracking-wider text-emerald-400">বকেয়া টাকা আদায় (Collect SAR)</h3>
-      <p class="text-[11px] text-slate-400" id="collect-modal-subtitle">আদায় বিবরণী</p>
+window.switchTab = function(tabName) {
+  document.querySelectorAll('.tab-page').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.nav-btn').forEach(el => el.className = "nav-btn flex flex-col items-center gap-1 text-slate-400 font-semibold text-[10px]");
+  
+  const activeTab = document.getElementById(`tab-${tabName}`);
+  if (activeTab) activeTab.classList.remove('hidden');
+  const activeNav = document.getElementById(`nav-${tabName}`);
+  if (activeNav) activeNav.className = "nav-btn flex flex-col items-center gap-1 text-emerald-400 font-semibold text-[10px]";
+};
 
-      <form id="collect-form" class="space-y-3">
-        <input type="hidden" id="collect-trans-id" value="">
-        <input type="hidden" id="collect-total-pending-sar" value="0">
+window.openTransactionModal = (type = 'INTERNATIONAL_TRANSFER') => {
+  document.getElementById('modal-trans-form').reset();
+  document.getElementById('modal-trans-id').value = '';
+  
+  const now = new Date();
+  document.getElementById('modal-trans-date').value = now.toISOString().split('T')[0];
+  document.getElementById('modal-trans-time').value = now.toTimeString().split(' ')[0].substring(0, 5);
 
-        <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs space-y-1">
-          <div class="flex justify-between text-slate-400">
-            <span>মোট বাকি পাওনা
+  const typeSelect = document.getElementById('modal-trans-type');
+  if (type === 'INTERNATIONAL_TRANSFER') {
+    typeSelect.value = 'International Transfer';
+    document.getElementById('remit-ref-no').value = `REM-${1001 + allTransactions.filter(t => t.type === 'International Transfer').length}`;
+  } else {
+    typeSelect.value = 'Outward Expense';
+    populateActiveRemitRefDropdown();
+  }
+
+  window.handleTypeChange(typeSelect);
+  document.getElementById('trans-modal').classList.remove('hidden');
+};
+
+window.closeTransactionModal = () => document.getElementById('trans-modal').classList.add('hidden');
+
+window.handleTypeChange = function(selectEl) {
+  const val = selectEl.value;
+  const remitBox = document.getElementById('remit-fields-container');
+  const outwardBox = document.getElementById('outward-fields-container');
+
+  if (val === 'International Transfer') {
+    remitBox.classList.remove('hidden');
+    outwardBox.classList.add('hidden');
+  } else {
+    remitBox.classList.add('hidden');
+    outwardBox.classList.remove('hidden');
+    populateActiveRemitRefDropdown();
+  }
+};
+
+function populateActiveRemitRefDropdown() {
+  const refSelect = document.getElementById('outward-remit-ref-select');
+  if (!refSelect) return;
+
+  const remitTrans = allTransactions.filter(t => t.type === 'International Transfer');
+  refSelect.innerHTML = `<option value="">-- রেফারেন্স নির্বাচন করুন --</option>` + 
+    remitTrans.map(rt => `<option value="${rt.ref_no || 'REM-' + rt.id}">#${rt.ref_no || 'REM-' + rt.id} (Sent: ${rt.amount} SAR)</option>`).join('');
+}
+
+window.toggleOutwardCreditFields = function(val) {
+  const creditBox = document.getElementById('outward-credit-fields');
+  if (val === 'DUE') creditBox.classList.remove('hidden');
+  else creditBox.classList.add('hidden');
+};
+
+window.openCollectModal = function(transId, pendingSar) {
+  document.getElementById('collect-trans-id').value = transId;
+  document.getElementById('collect-total-pending-sar').value = pendingSar;
+  document.getElementById('collect-amount-input').value = pendingSar;
+  document.getElementById('collect-total-pending-text').innerText = `SAR ${parseFloat(pendingSar).toFixed(2)}`;
+  document.getElementById('collect-modal').classList.remove('hidden');
+};
+window.closeCollectModal = () => document.getElementById('collect-modal').classList.add('hidden');
+
+window.updateCollectRemainingPreview = function() {
+  const total = parseFloat(document.getElementById('collect-total-pending-sar').value) || 0;
+  const input = parseFloat(document.getElementById('collect-amount-input').value) || 0;
+  document.getElementById('collect-remaining-preview-text').innerText = `SAR ${Math.max(0, total - input).toFixed(2)}`;
+};
+
+window.applyFiltersAndRender = function() {
+  const container = document.getElementById('all-transactions-list');
+  if (!container) return;
+
+  const searchQ = (document.getElementById('search-input')?.value || '').toLowerCase();
+  const fromDate = document.getElementById('filter-from-date')?.value;
+  const toDate = document.getElementById('filter-to-date')?.value;
+
+  let filtered = [...allTransactions];
+  if (searchQ) {
+    filtered = filtered.filter(t => (t.ref_no && t.ref_no.toLowerCase().includes(searchQ)) || (t.debtor_name && t.debtor_name.toLowerCase().includes(searchQ)));
+  }
+  if (fromDate) filtered = filtered.filter(t => (t.created_at ? t.created_at.split('T')[0] : '') >= fromDate);
+  if (toDate) filtered = filtered.filter(t => (t.created_at ? t.created_at.split('T')[0] : '') <= toDate);
+
+  if (!filtered.length) {
+    container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">কোনো রেকর্ড পাওয়া যায়নি।</p>`;
+    return;
+  }
+  container.innerHTML = filtered.map(t => createItemHTML(t)).join('');
+};
+
+window.downloadPDFReport = function() {
+  const reportElement = document.createElement('div');
+  reportElement.style.padding = '15px';
+  reportElement.innerHTML = `<h2 style="color: #10b981;">Arbitrage Trading Report</h2><p>Total Transactions: ${allTransactions.length}</p>`;
+  html2pdf().from(reportElement).save('Arbitrage_Report.pdf');
+};
+
+function renderProfitChart(transactions) {
+  const ctx = document.getElementById('profitChart')?.getContext('2d');
+  if (!ctx) return;
+  if (chartInstance) chartInstance.destroy();
+
+  chartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Sent SAR', 'Returned SAR'],
+      datasets: [{ data: [1, 1], backgroundColor: ['#10b981', '#6366f1'] }]
+    },
+    options: { plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } } }
+  });
+}
+
+function saveDefaultReturnRate() {
+  const rate = document.getElementById('default-return-rate').value;
+  localStorage.setItem('arbitrage_default_return_rate', rate);
+  renderArbitrageDashboard(allTransactions);
+}
+
+function bindEvents() {
+  document.getElementById('logout-btn')?.addEventListener('click', () => {
+    localStorage.removeItem('spendly_last_user');
+    window.location.reload();
+  });
+
+  document.getElementById('search-input')?.addEventListener('input', window.applyFiltersAndRender);
+
+  document.getElementById('modal-trans-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const typeVal = document.getElementById('modal-trans-type').value;
+    const dateVal = document.getElementById('modal-trans-date').value;
+    const timeVal = document.getElementById('modal-trans-time').value;
+    const fullDateTime = new Date(`${dateVal}T${timeVal}:00`).toISOString();
+
+    let payload = {
+      user_id: currentUser ? currentUser.id : 'local_user',
+      type: typeVal,
+      created_at: fullDateTime
+    };
+
+    if (typeVal === 'International Transfer') {
+      const sarAmt = parseFloat(document.getElementById('remit-sar-amount').value) || 0;
+      const rate = parseFloat(document.getElementById('remit-exchange-rate').value) || 32.5;
+      const fee = parseFloat(document.getElementById('remit-fee').value) || 0;
+      const converted = sarAmt * rate;
+      const incentive = document.getElementById('remit-incentive-toggle').checked ? (converted * 0.025) : 0;
+
+      payload.amount = sarAmt;
+      payload.from_account = document.getElementById('remit-sender-acc').value;
+      payload.to_account = document.getElementById('remit-receiver-acc').value;
+      payload.remit_fee = fee;
+      payload.exchange_rate = rate;
+      payload.converted_amount = converted;
+      payload.incentive_amount = incentive;
+      payload.ref_no = document.getElementById('remit-ref-no').value;
+    } else {
+      const bdtAmt = parseFloat(document.getElementById('outward-bdt-amount').value) || 0;
+      const rate = parseFloat(document.getElementById('outward-exchange-rate').value) || 33.0;
+      const convertedSar = rate > 0 ? (bdtAmt / rate) : 0;
+      const dueStatus = document.getElementById('outward-payment-status').value;
+
+      payload.amount = bdtAmt;
+      payload.from_account = document.getElementById('outward-from-acc').value;
+      payload.to_account = document.getElementById('outward-to-acc').value;
+      payload.remit_fee = parseFloat(document.getElementById('outward-fee').value) || 0;
+      payload.exchange_rate = rate;
+      payload.converted_amount = convertedSar;
+      payload.ref_no = document.getElementById('outward-remit-ref-select').value;
+      payload.due_status = dueStatus;
+      if (dueStatus === 'DUE') {
+        payload.debtor_name = document.getElementById('outward-person-name').value || 'Friend';
+      }
+    }
+
+    if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser.id !== 'local_user') {
+      await dbClient.from('transactions').insert([payload]);
+    }
+
+    window.closeTransactionModal();
+    await loadTransactions();
+  });
+
+  document.getElementById('collect-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const transId = document.getElementById('collect-trans-id').value;
+    const totalPending = parseFloat(document.getElementById('collect-total-pending-sar').value) || 0;
+    const collected = parseFloat(document.getElementById('collect-amount-input').value) || 0;
+
+    if (collected >= totalPending) {
+      if (navigator.onLine && typeof dbClient !== 'undefined' && dbClient && currentUser.id !== 'local_user') {
+        await dbClient.from('transactions').update({ due_status: 'COLLECTED' }).eq('id', transId);
+      }
+    }
+    window.closeCollectModal();
+    await loadTransactions();
+  });
+}
