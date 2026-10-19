@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0fd68a"/>
+      <stop offset=".55" stop-color="#0ba360"/>
+      <stop offset="1" stop-color="#046a4e"/>
+    </linearGradient>
+    <linearGradient id="coin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe27a"/>
+      <stop offset="1" stop-color="#ffb703"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="115" fill="url(#g)"/>
+  <circle cx="388" cy="118" r="58" fill="url(#coin)"/>
+  <text x="388" y="140" font-family="Arial, sans-serif" font-size="62" font-weight="900" fill="#7a4d00" text-anchor="middle">S</text>
+  <path d="M108 176c0-24 19-44 44-44h208c24 0 44 20 44 44v28H108v-28z" fill="#ffffff" opacity=".28"/>
+  <rect x="84" y="188" width="344" height="196" rx="38" fill="#ffffff"/>
+  <rect x="84" y="248" width="344" height="34" fill="#0ba360"/>
+  <circle cx="356" cy="322" r="23" fill="url(#coin)"/>
+  <rect x="122" y="314" width="150" height="20" rx="10" fill="#dcefe6"/>
+  <rect x="122" y="348" width="104" height="16" rx="8" fill="#eef4f1"/>
+  <path d="M146 428l52-36 52 28 72-52" stroke="#ffffff" stroke-width="18" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M292 364h34v34" stroke="#ffffff" stroke-width="18" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

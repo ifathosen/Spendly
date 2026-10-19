@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spendly — Personal Expense Tracker</title>
+<meta name="description" content="Spendly — track cash in, cash out, budgets and accounts in SAR. Private, mobile-first personal finance.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0ba360">
+<style>
+:root{
+  --green:#0ba360; --green2:#0fd68a; --green-dark:#046a4e; --deep:#063f31;
+  --red:#e63946; --red-soft:#fdebec; --green-soft:#e6f7ef;
+  --bg:#f4f7f5; --card:#ffffff; --text:#10231b; --muted:#71857b; --line:#e5ede9;
+  --shadow:0 10px 30px rgba(4,80,55,.10); --radius:20px;
+}
+[data-theme="dark"]{--bg:#0d1512;--card:#16211c;--text:#ecf5f0;--muted:#93a89d;--line:#24352d;--green-soft:#123528;--red-soft:#3a1a1e;--shadow:0 10px 30px rgba(0,0,0,.4)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+button{font-family:inherit;cursor:pointer;border:none}
+input,select,textarea{font-family:inherit;font-size:15px;color:var(--text);background:var(--card);width:100%;padding:13px 14px;border:1.5px solid var(--line);border-radius:14px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--green)}
+label{display:block;font-size:12.5px;font-weight:700;color:var(--muted);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.04em}
+h1,h2,h3{margin:0}
+.hidden{display:none!important}
+.wrap{max-width:520px;margin:0 auto;padding:0 16px 110px}
+@media(min-width:760px){.wrap{max-width:880px}}
+
+/* ---------- Landing ---------- */
+#landing{min-height:100vh;background:linear-gradient(160deg,#063f31 0%,#046a4e 55%,#0ba360 100%);color:#fff;overflow:hidden;position:relative}
+#landing::after{content:"";position:absolute;width:520px;height:520px;border-radius:50%;background:rgba(255,255,255,.08);right:-180px;top:-140px}
+.landing-inner{max-width:960px;margin:0 auto;padding:26px 20px 60px;position:relative;z-index:1}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:11px;font-weight:900;font-size:24px;letter-spacing:-.02em}
+.brand img{width:44px;height:44px;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+.hero{display:grid;gap:34px;margin-top:52px}
+@media(min-width:820px){.hero{grid-template-columns:1.1fr .9fr;align-items:center}}
+.hero h1{font-size:clamp(38px,7vw,62px);line-height:1.02;letter-spacing:-.03em}
+.hero h1 span{color:#ffe27a}
+.hero p{font-size:17px;line-height:1.65;color:#d8f3e7;max-width:540px}
+.cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 22px;border-radius:16px;font-weight:800;font-size:15px;transition:.18s;text-decoration:none}
+.btn:active{transform:scale(.98)}
+.btn-gold{background:linear-gradient(135deg,#ffe27a,#ffb703);color:#5c3d00;box-shadow:0 12px 26px rgba(255,183,3,.35)}
+.btn-white{background:#fff;color:var(--green-dark)}
+.btn-ghost{background:rgba(255,255,255,.13);color:#fff;border:1px solid rgba(255,255,255,.35)}
+.btn-green{background:linear-gradient(135deg,var(--green2),var(--green));color:#fff;box-shadow:0 10px 22px rgba(11,163,96,.30)}
+.btn-red{background:linear-gradient(135deg,#ff5d6c,var(--red));color:#fff;box-shadow:0 10px 22px rgba(230,57,70,.28)}
+.btn-soft{background:var(--green-soft);color:var(--green-dark)}
+[data-theme="dark"] .btn-soft{color:var(--green2)}
+.btn-block{width:100%}
+.btn-sm{padding:9px 14px;border-radius:12px;font-size:13px}
+.phone{background:#fff;color:#10231b;border-radius:36px;padding:20px;box-shadow:0 35px 80px rgba(0,0,0,.35);max-width:350px;margin:0 auto;width:100%}
+.phone .bal{background:linear-gradient(135deg,#0fd68a,#046a4e);color:#fff;border-radius:24px;padding:20px}
+.phone .bal small{opacity:.85}.phone .bal strong{font-size:30px;display:block;margin-top:4px}
+.mini-row{display:flex;gap:10px;margin-top:12px}
+.mini{flex:1;border-radius:16px;padding:12px;font-size:12px;font-weight:700}
+.mini.in{background:#e6f7ef;color:#046a4e}.mini.out{background:#fdebec;color:#c22633}
+.tx-mini{display:flex;justify-content:space-between;padding:12px 2px;border-bottom:1px solid #eef2f0;font-size:13.5px}
+.features{display:grid;gap:14px;margin-top:56px}
+@media(min-width:820px){.features{grid-template-columns:repeat(3,1fr)}}
+.feature{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:20px;padding:20px;backdrop-filter:blur(6px)}
+.feature b{font-size:16px}.feature p{font-size:13.5px;color:#d8f3e7;margin:8px 0 0;line-height:1.6}
+.landing-foot{margin-top:44px;font-size:13px;color:#bfe8d6;text-align:center}
+
+/* ---------- Auth modal ---------- */
+.modal{position:fixed;inset:0;background:rgba(3,30,21,.62);display:flex;align-items:flex-end;justify-content:center;z-index:60;backdrop-filter:blur(4px)}
+@media(min-width:640px){.modal{align-items:center;padding:20px}}
+.sheet{background:var(--card);color:var(--text);width:100%;max-width:430px;border-radius:28px 28px 0 0;padding:28px 24px 34px;max-height:92vh;overflow:auto}
+@media(min-width:640px){.sheet{border-radius:28px}}
+.sheet h2{font-size:24px;letter-spacing:-.02em}
+.sheet .sub{color:var(--muted);font-size:14px;margin-top:6px;line-height:1.5}
+.link{color:var(--green);font-weight:800;background:none;font-size:14px;padding:0}
+.err{background:var(--red-soft);color:#c22633;padding:11px 13px;border-radius:12px;font-size:13.5px;margin-top:14px}
+.ok{background:var(--green-soft);color:var(--green-dark);padding:11px 13px;border-radius:12px;font-size:13.5px;margin-top:14px}
+[data-theme="dark"] .ok{color:var(--green2)}
+
+/* ---------- App shell ---------- */
+.app-head{position:sticky;top:0;z-index:30;background:linear-gradient(135deg,var(--deep),var(--green-dark) 60%,var(--green));color:#fff;border-radius:0 0 28px 28px;box-shadow:var(--shadow)}
+.app-head-inner{max-width:880px;margin:0 auto;padding:18px 16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.app-head .brand{font-size:21px}.app-head .brand img{width:38px;height:38px}
+.avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#ffe27a,#ffb703);color:#5c3d00;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:17px;border:2px solid rgba(255,255,255,.55);cursor:pointer}
+.greet{font-size:13px;opacity:.85}.user-name{font-weight:800;font-size:16px}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-top:16px;border:1px solid var(--line)}
+.balance-card{background:linear-gradient(140deg,#0fd68a,#046a4e 70%);color:#fff;border:none;overflow:hidden;position:relative}
+.balance-card::after{content:"";position:absolute;width:240px;height:240px;border-radius:50%;background:rgba(255,255,255,.10);right:-80px;top:-90px}
+.balance-card small{opacity:.88;font-size:13px}
+.balance-total{font-size:38px;font-weight:900;letter-spacing:-.03em;margin:5px 0 2px}
+.io-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;position:relative;z-index:1}
+.io-box{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:16px;padding:13px}
+.io-box b{font-size:18px;display:block;margin-top:3px}
+.cash-actions{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:16px}
+.cash-btn{border-radius:20px;padding:18px 14px;color:#fff;font-size:17px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:var(--shadow)}
+.cash-in{background:linear-gradient(135deg,#16c784,#07874f)}
+.cash-out{background:linear-gradient(135deg,#ff5d6c,#d92334)}
+.cash-btn small{display:block;font-size:11.5px;font-weight:600;opacity:.88}
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin:22px 0 2px}
+.sec-head h3{font-size:17px;letter-spacing:-.01em}
+.chip-row{display:flex;gap:8px;overflow:auto;padding:4px 0 2px;scrollbar-width:none}
+.chip{white-space:nowrap;padding:9px 14px;border-radius:999px;background:var(--card);border:1.5px solid var(--line);font-weight:700;font-size:13px;color:var(--muted)}
+.chip.active{background:var(--green);border-color:var(--green);color:#fff}
+.acc-scroll{display:flex;gap:12px;overflow:auto;padding:4px 0;scrollbar-width:none}
+.acc-mini{min-width:158px;border-radius:18px;padding:15px;color:#fff;background:linear-gradient(140deg,#274156,#101d29)}
+.acc-mini:nth-child(2n){background:linear-gradient(140deg,#7b4dff,#3d2a8f)}
+.acc-mini:nth-child(3n){background:linear-gradient(140deg,#f59e0b,#b45309)}
+.acc-mini small{opacity:.85;font-size:12px}.acc-mini b{font-size:19px;display:block;margin-top:5px}
+.tx{display:flex;gap:12px;align-items:center;padding:13px 0;border-bottom:1px solid var(--line)}
+.tx:last-child{border-bottom:none}
+.tx-ic{width:45px;height:45px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+.tx-ic.in{background:var(--green-soft)}.tx-ic.out{background:var(--red-soft)}
+.tx-main{flex:1;min-width:0}.tx-main b{font-size:14.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx-main span{font-size:12.5px;color:var(--muted)}
+.tx-amt{font-weight:900;font-size:14.5px;text-align:right}
+.tx-amt.in{color:var(--green)}.tx-amt.out{color:var(--red)}
+.tx-amt small{display:block;color:var(--muted);font-weight:600;font-size:11.5px}
+.icon-btn{background:var(--bg);border:1px solid var(--line);width:36px;height:36px;border-radius:11px;font-size:15px;flex:none}
+.empty{text-align:center;color:var(--muted);padding:30px 12px;font-size:14px;line-height:1.6}
+.progress{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:9px}
+.progress>i{display:block;height:100%;background:linear-gradient(90deg,var(--green2),var(--green));border-radius:99px}
+.progress>i.warn{background:linear-gradient(90deg,#ffb703,#f59e0b)}
+.progress>i.over{background:linear-gradient(90deg,#ff5d6c,var(--red))}
+.alert{border-radius:16px;padding:14px 15px;font-size:13.5px;line-height:1.55;margin-top:14px}
+.alert.warn{background:#fff7e0;color:#7a5200;border:1px solid #ffe59a}
+.alert.over{background:var(--red-soft);color:#b01f2e;border:1px solid #ffc9ce}
+[data-theme="dark"] .alert.warn{background:#3a2f10;color:#ffd970}
+canvas{width:100%;max-width:100%}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:430px){.grid2{grid-template-columns:1fr}}
+.stat-num{font-size:23px;font-weight:900;letter-spacing:-.02em}
+.list-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 0;border-bottom:1px solid var(--line)}
+.list-row:last-child{border-bottom:none}
+.tag{display:inline-block;padding:4px 9px;border-radius:999px;background:var(--green-soft);color:var(--green-dark);font-size:11.5px;font-weight:800}
+[data-theme="dark"] .tag{color:var(--green2)}
+.type-toggle{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.type-toggle button{padding:15px;border-radius:16px;font-weight:900;font-size:15px;background:var(--bg);border:2px solid var(--line);color:var(--muted)}
+.type-toggle button.sel-in{background:var(--green-soft);border-color:var(--green);color:var(--green-dark)}
+.type-toggle button.sel-out{background:var(--red-soft);border-color:var(--red);color:#c22633}
+.amount-big{font-size:30px!important;font-weight:900;text-align:center;padding:18px!important}
+.clock-box{background:var(--green-soft);color:var(--green-dark);border-radius:14px;padding:12px 14px;font-size:13.5px;font-weight:700;text-align:center;margin-top:14px}
+[data-theme="dark"] .clock-box{color:var(--green2)}
+
+/* bottom nav */
+.bottom-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:880px;background:var(--card);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);z-index:40;padding:8px 8px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -8px 30px rgba(0,0,0,.07)}
+.nav-btn{background:none;color:var(--muted);font-size:11px;font-weight:800;padding:7px 2px;border-radius:13px}
+.nav-btn span{display:block;font-size:21px;margin-bottom:2px}
+.nav-btn.active{color:var(--green);background:var(--green-soft)}
+.fab-row{display:flex;gap:10px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;background:#10231b;color:#fff;padding:13px 18px;border-radius:14px;font-size:14px;font-weight:700;z-index:80;box-shadow:0 16px 40px rgba(0,0,0,.25);max-width:92vw;text-align:center}
+.view-title{font-size:22px;letter-spacing:-.02em;margin-top:20px}
+.view-sub{color:var(--muted);font-size:13.5px;margin-top:4px;line-height:1.5}
+details.card summary{font-weight:900;cursor:pointer;list-style:none}
+code{background:var(--bg);border:1px solid var(--line);padding:2px 6px;border-radius:7px;font-size:12.5px}
+
+/* print statement */
+#printArea{display:none}
+@media print{
+  body{background:#fff}
+  #landing,#app,.bottom-nav,.modal,.toast{display:none!important}
+  #printArea{display:block!important;color:#111;font-family:Arial,sans-serif;padding:10px}
+  #printArea table{width:100%;border-collapse:collapse;font-size:12px;margin-top:14px}
+  #printArea th,#printArea td{border:1px solid #ccc;padding:7px;text-align:left}
+  #printArea th{background:#e9f5ef}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= LANDING ================= -->
+<section id="landing">
+  <div class="landing-inner">
+    <div class="topbar">
+      <div class="brand"><img src="icon.svg" alt="Spendly icon"> Spendly</div>
+      <div class="cta-row" style="margin:0">
+        <button class="btn btn-ghost btn-sm" onclick="openAuth('login')">Log In</button>
+        <button class="btn btn-gold btn-sm" onclick="openAuth('register')">Register</button>
+      </div>
+    </div>
+
+    <div class="hero">
+      <div>
+        <h1>Track every <span>SAR</span>,<br>own your money.</h1>
+        <p>Spendly is your private personal finance companion — cash in, cash out, budgets, multiple accounts and beautiful statistics, all in one fast mobile-first app.</p>
+        <div class="cta-row">
+          <button class="btn btn-gold" onclick="openAuth('register')">✦ Create Free Account</button>
+          <button class="btn btn-white" onclick="openAuth('login')">Log In →</button>
+          <button class="btn btn-ghost" onclick="startDemo()">▶ Explore Demo</button>
+        </div>
+        <p style="font-size:13px;margin-top:14px">100% private · Works offline · Optional Google Sheets sync · Currency: SAR</p>
+      </div>
+      <div class="phone" aria-hidden="true">
+        <div class="bal"><small>Total Balance</small><strong>SAR 12,450.00</strong><small>Cash · Bank · Wallet — all traceable</small></div>
+        <div class="mini-row"><div class="mini in">▼ Cash In<br>SAR 8,000</div><div class="mini out">▲ Cash Out<br>SAR 3,250</div></div>
+        <div class="tx-mini"><span>🛒 Groceries</span><b style="color:#d92334">- SAR 240</b></div>
+        <div class="tx-mini"><span>💼 Salary</span><b style="color:#07874f">+ SAR 8,000</b></div>
+        <div class="tx-mini"><span>⛽ Fuel</span><b style="color:#d92334">- SAR 150</b></div>
+      </div>
+    </div>
+
+    <div class="features">
+      <div class="feature"><b>💸 Realistic Cash In / Out</b><p>Two big, clear buttons. Add an entry in seconds — date &amp; exact time are captured automatically.</p></div>
+      <div class="feature"><b>📊 Statistics &amp; Budgets</b><p>Monthly charts, category breakdowns, budget limits with alerts before you overspend.</p></div>
+      <div class="feature"><b>🏦 Every Account Traceable</b><p>Cash, bank or wallet — balances update everywhere instantly: entry page, accounts page, dashboard.</p></div>
+      <div class="feature"><b>🧾 PDF Statements</b><p>Download statements by calendar month, week, or any custom date range.</p></div>
+      <div class="feature"><b>☁️ Google Sheets Sync</b><p>Optionally store your data in your own Google Sheet via Google Apps Script — you own your data.</p></div>
+      <div class="feature"><b>🔒 Private by Design</b><p>Your data stays in your browser (and your Google Sheet if you enable sync). No third-party server.</p></div>
+    </div>
+    <p class="landing-foot">Spendly · Personal use only · Made for everyday SAR expense tracking 🇸🇦</p>
+  </div>
+</section>
+
+<!-- ================= AUTH ================= -->
+<div id="authModal" class="modal hidden">
+  <div class="sheet">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="brand" style="color:var(--text)"><img src="icon.svg" width="40" height="40" style="border-radius:11px" alt=""> Spendly</div>
+      <button class="icon-btn" onclick="closeAuth()">✕</button>
+    </div>
+    <h2 id="authTitle" style="margin-top:18px">Welcome back</h2>
+    <p class="sub" id="authSub">Log in to continue tracking your money.</p>
+    <div id="authErr"></div>
+    <form onsubmit="submitAuth(event)">
+      <div id="nameField" class="hidden"><label>Full Name</label><input id="authName" placeholder="e.g. Your Name" autocomplete="name"></div>
+      <label>Email</label><input id="authEmail" type="email" required placeholder="you@example.com" autocomplete="email">
+      <label>Password</label><input id="authPassword" type="password" required placeholder="••••••••" autocomplete="current-password">
+      <button class="btn btn-green btn-block" style="margin-top:20px" id="authSubmit">Log In</button>
+    </form>
+    <p style="text-align:center;margin:16px 0 0;font-size:14px;color:var(--muted)">
+      <span id="authSwitchText">New to Spendly?</span>
+      <button class="link" onclick="toggleAuthMode()" id="authSwitchBtn">Register</button>
+    </p>
+    <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-top:14px">🔒 Demo-grade local login for personal use on your own device. Your finance data is stored in this browser + optionally your own Google Sheet.</p>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hidden">
+  <header class="app-head">
+    <div class="app-head-inner">
+      <div class="brand"><img src="icon.svg" alt=""> Spendly</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="text-align:right"><div class="greet" id="greetText">Assalamu Alaikum</div><div class="user-name" id="userNameText">User</div></div>
+        <div class="avatar" id="avatarBtn" title="Account">U</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <!-- ===== DASHBOARD ===== -->
+    <section id="view-dashboard">
+      <div class="card balance-card">
+        <small>Total Balance · All Accounts (SAR)</small>
+        <div class="balance-total" id="totalBalance">SAR 0.00</div>
+        <small id="balanceHint">Updated instantly with every entry</small>
+        <div class="io-row">
+          <div class="io-box"><small>▼ Cash In · This Month</small><b id="monthIn">SAR 0</b></div>
+          <div class="io-box"><small>▲ Cash Out · This Month</small><b id="monthOut">SAR 0</b></div>
+        </div>
+      </div>
+
+      <div class="cash-actions">
+        <button class="cash-btn cash-in" onclick="openEntry('income')">▼ Cash In<small style="display:block;width:100%;text-align:center">Add money received</small></button>
+        <button class="cash-btn cash-out" onclick="openEntry('expense')">▲ Cash Out<small style="display:block;width:100%;text-align:center">Add money spent</small></button>
+      </div>
+
+      <div id="budgetAlert"></div>
+
+      <div class="sec-head"><h3>🏦 Accounts · Live Balances</h3><button class="link" onclick="showView('accounts')">See all →</button></div>
+      <div class="acc-scroll" id="dashAccounts"></div>
+
+      <div class="sec-head"><h3>🎯 Budget · This Month</h3><button class="link" onclick="showView('budget')">Manage →</button></div>
+      <div class="card" id="dashBudget" style="margin-top:8px"></div>
+
+      <div class="sec-head"><h3>🕘 Recent Transactions</h3><button class="link" onclick="showView('statement')">Statement ↓ PDF</button></div>
+      <div class="card" id="recentTx" style="margin-top:8px"></div>
+
+      <div class="sec-head"><h3>📋 All Transactions</h3></div>
+      <input id="txSearch" placeholder="🔍 Search category, note or account…" oninput="renderAllTx()">
+      <div class="chip-row" id="txFilterChips" style="margin-top:10px">
+        <button class="chip active" data-f="all" onclick="setTxFilter('all',this)">All</button>
+        <button class="chip" data-f="income" onclick="setTxFilter('income',this)">Cash In</button>
+        <button class="chip" data-f="expense" onclick="setTxFilter('expense',this)">Cash Out</button>
+      </div>
+      <div class="card" id="allTx"></div>
+    </section>
+
+    <!-- ===== ENTRY ===== -->
+    <section id="view-entry" class="hidden">
+      <h2 class="view-title" id="entryTitle">Add Entry</h2>
+      <p class="view-sub">Date &amp; exact time are collected automatically.</p>
+      <div class="clock-box">🕒 <span id="entryClock">—</span><br><span style="font-weight:600;opacity:.8;font-size:12px" id="entryAutoNote">Auto-captured · Saudi Arabia time</span></div>
+      <div class="type-toggle">
+        <button id="typeInBtn" onclick="setEntryType('income')">▼ Cash In</button>
+        <button id="typeOutBtn" onclick="setEntryType('expense')">▲ Cash Out</button>
+      </div>
+      <form onsubmit="saveEntry(event)">
+        <label>Amount (SAR)</label>
+        <input id="entryAmount" class="amount-big" type="number" step="0.01" min="0.01" required placeholder="0.00" inputmode="decimal">
+        <label>Category · <span style="text-transform:none">(yours — you can add new)</span></label>
+        <select id="entryCategory" onchange="onCategoryChange()"></select>
+        <div id="newCatWrap" class="hidden"><label>New Category Name</label><input id="entryNewCategory" placeholder="Type your own category…"></div>
+        <label>Account · Balance Shown</label>
+        <select id="entryAccount"></select>
+        <label>Note (Optional)</label>
+        <input id="entryNote" placeholder="e.g. Weekly groceries at Panda">
+        <button class="btn btn-green btn-block" style="margin-top:22px;font-size:16px;padding:16px">💾 Save Button · Save Entry</button>
+        <button type="button" class="btn btn-soft btn-block" style="margin-top:10px" onclick="showView('dashboard')">Cancel</button>
+      </form>
+    </section>
+
+    <!-- ===== STATISTICS ===== -->
+    <section id="view-stats" class="hidden">
+      <h2 class="view-title">📊 Statistics</h2>
+      <p class="view-sub">Your money story — income vs spending, by month, week and category.</p>
+      <div class="grid2">
+        <div class="card"><small style="color:var(--muted);font-weight:700">CASH IN · THIS MONTH</small><div class="stat-num" style="color:var(--green)" id="statIn">SAR 0</div></div>
+        <div class="card"><small style="color:var(--muted);font-weight:700">CASH OUT · THIS MONTH</small><div class="stat-num" style="color:var(--red)" id="statOut">SAR 0</div></div>
+        <div class="card"><small style="color:var(--muted);font-weight:700">NET SAVED · THIS MONTH</small><div class="stat-num" id="statNet">SAR 0</div></div>
+        <div class="card"><small style="color:var(--muted);font-weight:700">AVG. DAILY SPEND</small><div class="stat-num" id="statAvg">SAR 0</div></div>
+      </div>
+      <div class="card"><h3>Last 6 Months · In vs Out</h3><canvas id="chartMonths" width="640" height="300" style="margin-top:12px"></canvas></div>
+      <div class="card"><h3>Last 7 Days · Spending</h3><canvas id="chartWeek" width="640" height="260" style="margin-top:12px"></canvas></div>
+      <div class="card"><h3>Where Money Went · This Month</h3><canvas id="chartCats" width="640" height="280" style="margin-top:12px"></canvas><div id="catLegend"></div></div>
+      <div class="card"><h3>Top Expense Categories · All Time</h3><div id="topCats"></div></div>
+    </section>
+
+    <!-- ===== ACCOUNTS ===== -->
+    <section id="view-accounts" class="hidden">
+      <h2 class="view-title">🏦 Accounts</h2>
+      <p class="view-sub">Every balance is traceable — tap an account to see only its transactions.</p>
+      <div class="card balance-card"><small>Total Balance · Traceable Across App</small><div class="balance-total" id="accTotalBalance">SAR 0.00</div></div>
+      <div id="accountCards"></div>
+      <div class="card">
+        <h3>➕ Add Account</h3>
+        <label>Account Name</label><input id="accName" placeholder="e.g. Al Rajhi Bank, STC Pay, Cash Wallet">
+        <label>Type</label><select id="accType"><option>Cash</option><option>Bank</option><option>Mobile Wallet</option><option>Card</option><option>Other</option></select>
+        <label>Opening Balance (SAR)</label><input id="accOpening" type="number" step="0.01" placeholder="0.00">
+        <button class="btn btn-green btn-block" style="margin-top:16px" onclick="addAccount()">Add Account</button>
+      </div>
+      <div class="card"><h3>🔁 Transfer Between Accounts</h3>
+        <label>From</label><select id="trFrom"></select>
+        <label>To</label><select id="trTo"></select>
+        <label>Amount (SAR)</label><input id="trAmount" type="number" step="0.01" min="0.01" placeholder="0.00">
+        <button class="btn btn-soft btn-block" style="margin-top:16px" onclick="transfer()">Transfer (balances update everywhere)</button>
+      </div>
+      <div class="sec-head"><h3 id="accTxTitle">Account Transactions</h3><button class="link hidden" id="clearAccFilter" onclick="selectAccount(null)">Show all</button></div>
+      <div class="card" id="accountTx"></div>
+    </section>
+
+    <!-- ===== BUDGET ===== -->
+    <section id="view-budget" class="hidden">
+      <h2 class="view-title">🎯 Budget Page</h2>
+      <p class="view-sub">Set monthly limits. Spendly warns you at 80% and 100%.</p>
+      <div id="budgetList"></div>
+      <div class="card">
+        <h3>➕ Set / Update Budget</h3>
+        <label>Category</label><select id="budgetCategory"></select>
+        <label>Monthly Limit (SAR)</label><input id="budgetAmount" type="number" step="0.01" min="1" placeholder="e.g. 1500">
+        <button class="btn btn-green btn-block" style="margin-top:16px" onclick="saveBudget()">Save Budget</button>
+      </div>
+    </section>
+
+    <!-- ===== STATEMENT ===== -->
+    <section id="view-statement" class="hidden">
+      <h2 class="view-title">🧾 Statement · PDF</h2>
+      <p class="view-sub">Download by calendar month, week, or any custom date range.</p>
+      <div class="card">
+        <label>Quick Period</label>
+        <select id="stmtPreset" onchange="onStmtPreset()">
+          <option value="month">This Calendar Month</option>
+          <option value="lastMonth">Last Calendar Month</option>
+          <option value="week">This Week</option>
+          <option value="lastWeek">Last Week</option>
+          <option value="custom">Custom Date Range</option>
+        </select>
+        <div id="stmtMonthWrap"><label>Calendar Month</label><input id="stmtMonth" type="month"></div>
+        <div id="stmtCustomWrap" class="hidden grid2" style="margin-top:2px">
+          <div><label>From</label><input id="stmtFrom" type="date"></div>
+          <div><label>To</label><input id="stmtTo" type="date"></div>
+        </div>
+        <label>Account</label><select id="stmtAccount"></select>
+        <label>Type</label><select id="stmtType"><option value="all">All</option><option value="income">Cash In Only</option><option value="expense">Cash Out Only</option></select>
+        <button class="btn btn-green btn-block" style="margin-top:18px" onclick="generateStatement()">👁 Preview Statement</button>
+        <button class="btn btn-gold btn-block" style="margin-top:10px" onclick="downloadPDF()">⬇ Download PDF</button>
+        <button class="btn btn-soft btn-block" style="margin-top:10px" onclick="exportCSV()">⬇ Download CSV / Excel</button>
+      </div>
+      <div class="card" id="stmtPreview"><div class="empty">Choose a period and tap “Preview Statement”.</div></div>
+    </section>
+
+    <!-- ===== SETTINGS ===== -->
+    <section id="view-settings" class="hidden">
+      <h2 class="view-title">⚙️ Settings</h2>
+      <p class="view-sub">Categories, Google sync, data &amp; preferences — everything under your control.</p>
+
+      <div class="card"><h3>👤 Profile</h3>
+        <div class="list-row"><span id="profileInfo">—</span><button class="btn btn-red btn-sm" onclick="logout()">Log Out</button></div>
+        <div class="list-row"><span>🌙 Dark Mode</span><button class="btn btn-soft btn-sm" onclick="toggleDark()">Toggle</button></div>
+        <div class="list-row"><span>💱 Currency</span><span class="tag">SAR · Saudi Riyal</span></div>
+      </div>
+
+      <div class="card"><h3>💰 Income Category Settings</h3><p style="color:var(--muted);font-size:13px;line-height:1.6">These appear in the Cash In entry form. Add your own anytime.</p><div id="incomeCatList"></div>
+        <div class="fab-row" style="margin-top:12px"><input id="newIncomeCat" placeholder="New income category…"><button class="btn btn-green" onclick="addCategory('income')">Add</button></div>
+      </div>
+
+      <div class="card"><h3>🛒 Expense Category Settings</h3><p style="color:var(--muted);font-size:13px;line-height:1.6">These appear in the Cash Out entry form. Add your own anytime.</p><div id="expenseCatList"></div>
+        <div class="fab-row" style="margin-top:12px"><input id="newExpenseCat" placeholder="New expense category…"><button class="btn btn-green" onclick="addCategory('expense')">Add</button></div>
+      </div>
+
+      <div class="card"><h3>☁️ Google Sheets Sync · Google API</h3>
+        <p style="color:var(--muted);font-size:13.5px;line-height:1.65">Store your data in <b>your own Google Sheet</b>. Deploy the included <code>google-apps-script.gs</code> file (see README), paste its Web App URL here, then sync. Full step-by-step guide is in the project README.</p>
+        <label>Google Apps Script Web App URL</label><input id="gsUrl" placeholder="https://script.google.com/macros/s/…/exec">
+        <div class="grid2" style="margin-top:14px">
+          <button class="btn btn-green" onclick="syncPush()">⬆ Push to Google</button>
+          <button class="btn btn-soft" onclick="syncPull()">⬇ Pull from Google</button>
+        </div>
+        <div id="syncStatus"></div>
+      </div>
+
+      <div class="card"><h3>💾 Data · Backup &amp; Restore</h3>
+        <div class="grid2" style="margin-top:12px">
+          <button class="btn btn-soft" onclick="exportJSON()">Export Backup (JSON)</button>
+          <label class="btn btn-soft" style="margin:0;text-transform:none;letter-spacing:0;cursor:pointer;text-align:center">Import Backup<input type="file" accept=".json" class="hidden" onchange="importJSON(event)"></label>
+        </div>
+        <button class="btn btn-soft btn-block" style="margin-top:10px" onclick="seedDemo()">Load Demo Transactions</button>
+        <button class="btn btn-red btn-block" style="margin-top:10px" onclick="clearAllData()">🗑 Delete All My Transactions</button>
+      </div>
+
+      <div class="card"><h3>ℹ️ About Spendly</h3><p style="color:var(--muted);font-size:13.5px;line-height:1.7">Private personal expense tracker · SAR · Works offline in your browser · Optional Google Sheets storage · Ready to host free on GitHub Pages. Version 1.0</p></div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-nav="dashboard" onclick="showView('dashboard')"><span>🏠</span>Dashboard</button>
+    <button class="nav-btn" data-nav="stats" onclick="showView('stats')"><span>📊</span>Statistics</button>
+    <button class="nav-btn" data-nav="accounts" onclick="showView('accounts')"><span>🏦</span>Accounts</button>
+    <button class="nav-btn" data-nav="settings" onclick="showView('settings')"><span>⚙️</span>Settings</button>
+  </nav>
+</div>
+
+<div id="printArea"></div>
+<div id="toastWrap"></div>
+
+<script>
+/* ================= Spendly v1.0 — single-file app ================= */
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const fmt=n=>'SAR '+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const monthKey=d=>{d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
+const nowMonth=()=>monthKey(new Date());
+const fmtDT=iso=>new Date(iso).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+const fmtD=iso=>new Date(iso).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const CAT_ICONS={'Food & Dining':'🍔','Groceries':'🛒','Transport':'🚗','Fuel':'⛽','Shopping':'🛍️','Bills & Utilities':'💡','Rent':'🏠','Health':'🏥','Entertainment':'🎬','Education':'📚','Salary':'💼','Business':'🏢','Freelance':'💻','Investment':'📈','Transfer In':'🔁','Transfer Out':'🔁'};
+const catIcon=c=>CAT_ICONS[c]||'💳';
+
+let authMode='login', state={user:null,data:null,view:'dashboard',entryType:'expense',editId:null,txFilter:'all',accFilter:null,stmtRows:[],stmtMeta:null};
+
+function defaultData(){return{
+  transactions:[],
+  categories:{income:['Salary','Business','Freelance','Investment','Other Income'],expense:['Food & Dining','Groceries','Transport','Fuel','Shopping','Bills & Utilities','Rent','Health','Entertainment','Education','Other Expense']},
+  accounts:[{id:'cash',name:'Cash',type:'Cash',opening:0},{id:'bank',name:'Bank Account',type:'Bank',opening:0}],
+  budgets:[{id:uid(),category:'Overall',amount:3000}],
+  settings:{dark:false,gsUrl:''}
+};}
+function users(){try{return JSON.parse(localStorage.getItem('spendly_users')||'[]')}catch(e){return[]}}
+function saveUsers(u){localStorage.setItem('spendly_users',JSON.stringify(u))}
+function dataKey(email){return 'spendly_data_'+email.toLowerCase()}
+function persist(){if(state.user)localStorage.setItem(dataKey(state.user.email),JSON.stringify(state.data));applyTheme();}
+function loadData(email){try{return JSON.parse(localStorage.getItem(dataKey(email)))||defaultData()}catch(e){return defaultData()}}
+function applyTheme(){document.documentElement.setAttribute('data-theme',state.data&&state.data.settings.dark?'dark':'light')}
+function toast(msg){$('#toastWrap').innerHTML='<div class="toast">'+esc(msg)+'</div>';setTimeout(()=>$('#toastWrap').innerHTML='',2600)}
+
+/* ---------- calculations ---------- */
+const txs=()=>state.data.transactions;
+function accBalance(id){const a=state.data.accounts.find(x=>x.id===id);if(!a)return 0;let b=Number(a.opening||0);txs().forEach(t=>{if(t.account===id)b+=t.type==='income'?Number(t.amount):-Number(t.amount)});return b}
+const totalBalance=()=>state.data.accounts.reduce((s,a)=>s+accBalance(a.id),0);
+const sumType=(list,type)=>list.filter(t=>t.type===type).reduce((s,t)=>s+Number(t.amount),0);
+const thisMonthTxs=()=>txs().filter(t=>monthKey(t.date)===nowMonth());
+function spentFor(category,mk){return txs().filter(t=>t.type==='expense'&&monthKey(t.date)===mk&&(category==='Overall'||t.category===category)).reduce((s,t)=>s+Number(t.amount),0)}
+
+/* ---------- auth ---------- */
+function openAuth(mode){authMode=mode;renderAuth();$('#authModal').classList.remove('hidden')}
+function closeAuth(){$('#authModal').classList.add('hidden')}
+function toggleAuthMode(){authMode=authMode==='login'?'register':'login';renderAuth()}
+function renderAuth(){const login=authMode==='login';
+  $('#authTitle').textContent=login?'Welcome back':'Create your account';
+  $('#authSub').textContent=login?'Log in to continue tracking your money.':'Register once — your private Spendly space is ready in seconds.';
+  $('#authSubmit').textContent=login?'Log In':'Register · Create Account';
+  $('#authSwitchText').textContent=login?'New to Spendly?':'Already have an account?';
+  $('#authSwitchBtn').textContent=login?'Register':'Log In';
+  $('#nameField').classList.toggle('hidden',login);$('#authErr').innerHTML='';}
+function authError(m){$('#authErr').innerHTML='<div class="err">'+esc(m)+'</div>'}
+function submitAuth(e){e.preventDefault();
+  const email=$('#authEmail').value.trim().toLowerCase(),pass=$('#authPassword').value,name=$('#authName').value.trim();
+  if(!email||pass.length<4)return authError('Please enter a valid email and a password of at least 4 characters.');
+  let list=users();
+  if(authMode==='register'){
+    if(list.find(u=>u.email===email))return authError('This email is already registered. Please log in.');
+    const user={name:name||email.split('@')[0],email,pass:btoa(pass)};
+    list.push(user);saveUsers(list);
+    if(!localStorage.getItem(dataKey(email)))localStorage.setItem(dataKey(email),JSON.stringify(defaultData()));
+    loginUser(user);toast('✅ Account created — Welcome to Spendly!');
+  }else{
+    const user=list.find(u=>u.email===email&&u.pass===btoa(pass));
+    if(!user)return authError('Wrong email or password. If you are new, tap Register below.');
+    loginUser(user);toast('✅ Welcome back, '+user.name+'!');
+  }}
+function loginUser(user){state.user=user;state.data=loadData(user.email);localStorage.setItem('spendly_session',user.email);closeAuth();enterApp();}
+function startDemo(){
+  let list=users(),email='demo@spendly.app';
+  if(!list.find(u=>u.email===email)){list.push({name:'Demo User',email,pass:btoa('demo')});saveUsers(list)}
+  state.user=list.find(u=>u.email===email);
+  if(!localStorage.getItem(dataKey(email))){state.data=defaultData();seedDemo(true);}else state.data=loadData(email);
+  localStorage.setItem('spendly_session',email);enterApp();toast('👋 Exploring Spendly in Demo mode');}
+function logout(){localStorage.removeItem('spendly_session');state.user=null;state.data=null;$('#app').classList.add('hidden');$('#landing').classList.remove('hidden');window.scrollTo(0,0)}
+function enterApp(){$('#landing').classList.add('hidden');$('#app').classList.remove('hidden');
+  $('#userNameText').textContent=state.user.name;$('#avatarBtn').textContent=(state.user.name||'U').trim()[0].toUpperCase();
+  const h=new Date().getHours();$('#greetText').textContent=h<12?'Good Morning':h<18?'Good Afternoon':'Good Evening';
+  applyTheme();showView('dashboard');}
+$('#avatarBtn').addEventListener('click',()=>showView('settings'));
+
+/* ---------- navigation ---------- */
+const MAIN_VIEWS=['dashboard','stats','accounts','settings'];
+function showView(v){state.view=v;
+  ['dashboard','entry','stats','accounts','budget','statement','settings'].forEach(x=>$('#view-'+x).classList.toggle('hidden',x!==v));
+  $$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.nav===v||(v==='budget'&&b.dataset.nav==='dashboard')||(v==='statement'&&b.dataset.nav==='dashboard')||(v==='entry'&&b.dataset.nav==='dashboard')));
+  window.scrollTo({top:0,behavior:'smooth'});renderAll();}
+
+/* ---------- entry ---------- */
+function openEntry(type){state.editId=null;state.entryType=type;$('#entryTitle').textContent=type==='income'?'▼ Cash In · Add Entry':'▲ Cash Out · Add Entry';$('#entryAmount').value='';$('#entryNote').value='';$('#entryNewCategory').value='';populateEntryForm();showView('entry');setTimeout(()=>$('#entryAmount').focus(),150)}
+function setEntryType(type){state.entryType=type;populateEntryForm();$('#entryTitle').textContent=type==='income'?'▼ Cash In · Add Entry':'▲ Cash Out · Add Entry'}
+function populateEntryForm(){
+  $('#typeInBtn').className=state.entryType==='income'?'sel-in':'';
+  $('#typeOutBtn').className=state.entryType==='expense'?'sel-out':'';
+  const cats=state.data.categories[state.entryType];
+  $('#entryCategory').innerHTML=cats.map(c=>'<option>'+esc(c)+'</option>').join('')+'<option value="__new__">➕ Add new category…</option>';
+  $('#newCatWrap').classList.add('hidden');
+  $('#entryAccount').innerHTML=state.data.accounts.map(a=>'<option value="'+a.id+'">'+esc(a.name)+' · '+fmt(accBalance(a.id))+'</option>').join('');
+  tickClock();}
+function onCategoryChange(){$('#newCatWrap').classList.toggle('hidden',$('#entryCategory').value!=='__new__')}
+function tickClock(){const el=$('#entryClock');if(el&&state.view==='entry'&&!state.editId)el.textContent=fmtDT(new Date().toISOString())+'  (auto)'}
+setInterval(tickClock,1000);
+function saveEntry(e){e.preventDefault();
+  let category=$('#entryCategory').value;
+  if(category==='__new__'){category=$('#entryNewCategory').value.trim();if(!category)return toast('⚠️ Type your new category name');
+    const list=state.data.categories[state.entryType];if(!list.includes(category))list.push(category);}
+  const amount=parseFloat($('#entryAmount').value),account=$('#entryAccount').value,note=$('#entryNote').value.trim();
+  if(!amount||amount<=0)return toast('⚠️ Enter a valid amount');
+  if(state.editId){const t=txs().find(x=>x.id===state.editId);Object.assign(t,{type:state.entryType,amount,category,account,note});toast('✅ Entry updated')}
+  else txs().unshift({id:uid(),type:state.entryType,amount,category,account,note,date:new Date().toISOString()});
+  persist();showView('dashboard');toast(state.entryType==='income'?'💰 Cash In saved · '+fmt(amount):'💸 Cash Out saved · '+fmt(amount));}
+function editTx(id){const t=txs().find(x=>x.id===id);if(!t)return;state.editId=id;state.entryType=t.type;showView('entry');populateEntryForm();
+  $('#entryTitle').textContent='✏️ Edit Entry';$('#entryAmount').value=t.amount;$('#entryCategory').value=t.category;$('#entryAccount').value=t.account;$('#entryNote').value=t.note||'';
+  $('#entryClock').textContent=fmtDT(t.date)+'  (original time kept)';}
+function deleteTx(id){if(!confirm('Delete this transaction? Account balances will update automatically.'))return;
+  state.data.transactions=txs().filter(t=>t.id!==id);persist();renderAll();toast('🗑 Transaction deleted')}
+
+/* ---------- rendering ---------- */
+function txHTML(t,showActions=true){const acc=state.data.accounts.find(a=>a.id===t.account);
+  return '<div class="tx"><div class="tx-ic '+(t.type==='income'?'in':'out')+'">'+catIcon(t.category)+'</div>'+
+  '<div class="tx-main"><b>'+esc(t.category)+'</b><span>'+esc(acc?acc.name:'Account')+' · '+fmtDT(t.date)+(t.note?' · '+esc(t.note):'')+'</span></div>'+
+  '<div class="tx-amt '+(t.type==='income'?'in':'out')+'">'+(t.type==='income'?'+':'−')+' '+fmt(t.amount)+'<small>Bal: '+fmt(accBalance(t.account))+'</small></div>'+
+  (showActions?'<button class="icon-btn" onclick="editTx(\''+t.id+'\')" title="Edit">✏️</button><button class="icon-btn" onclick="deleteTx(\''+t.id+'\')" title="Delete">🗑</button>':'')+'</div>'}
+function renderDashboard(){
+  const mt=thisMonthTxs(),mi=sumType(mt,'income'),mo=sumType(mt,'expense');
+  $('#totalBalance').textContent=fmt(totalBalance());$('#accTotalBalance').textContent=fmt(totalBalance());
+  $('#monthIn').textContent=fmt(mi);$('#monthOut').textContent=fmt(mo);
+  $('#balanceHint').textContent=state.data.accounts.length+' accounts · '+txs().length+' total entries · traces everywhere';
+  $('#dashAccounts').innerHTML=state.data.accounts.map(a=>'<div class="acc-mini" onclick="selectAccount(\''+a.id+'\')"><small>'+esc(a.type)+' · '+esc(a.name)+'</small><b>'+fmt(accBalance(a.id))+'</b><small>Tap to trace →</small></div>').join('')||'<div class="empty">No accounts yet</div>';
+  const overall=state.data.budgets.find(b=>b.category==='Overall');
+  if(overall){const spent=spentFor('Overall',nowMonth()),pct=Math.min(100,spent/overall.amount*100);
+    $('#dashBudget').innerHTML='<b>Overall Monthly Budget</b><div style="color:var(--muted);font-size:13px;margin-top:4px">Spent '+fmt(spent)+' of '+fmt(overall.amount)+' · '+pct.toFixed(0)+'%</div><div class="progress"><i class="'+(pct>=100?'over':pct>=80?'warn':'')+'" style="width:'+pct+'%"></i></div>';
+    $('#budgetAlert').innerHTML=pct>=100?'<div class="alert over">🚨 <b>Budget exceeded!</b> You spent '+fmt(spent)+' against your '+fmt(overall.amount)+' monthly budget.</div>':pct>=80?'<div class="alert warn">⚠️ <b>Budget warning:</b> You have used '+pct.toFixed(0)+'% of your monthly budget ('+fmt(spent)+' / '+fmt(overall.amount)+').</div>':'';
+  }else{$('#dashBudget').innerHTML='<div class="empty">No overall budget set.<br><button class="link" onclick="showView(\'budget\')">Set your monthly budget →</button></div>';$('#budgetAlert').innerHTML=''}
+  $('#recentTx').innerHTML=txs().slice(0,5).map(t=>txHTML(t)).join('')||'<div class="empty">No transactions yet.<br>Tap <b>Cash In</b> or <b>Cash Out</b> to add your first entry 🎉</div>';
+  renderAllTx();}
+function setTxFilter(f,el){state.txFilter=f;$$('#txFilterChips .chip').forEach(c=>c.classList.toggle('active',c===el));renderAllTx()}
+function renderAllTx(){const q=($('#txSearch').value||'').toLowerCase();
+  let list=txs().filter(t=>(state.txFilter==='all'||t.type===state.txFilter)&&(t.category.toLowerCase().includes(q)||(t.note||'').toLowerCase().includes(q)||(state.data.accounts.find(a=>a.id===t.account)?.name||'').toLowerCase().includes(q)));
+  $('#allTx').innerHTML=list.slice(0,60).map(t=>txHTML(t)).join('')||'<div class="empty">No matching transactions found.</div>'}
+function renderStats(){
+  const mt=thisMonthTxs(),mi=sumType(mt,'income'),mo=sumType(mt,'expense');
+  $('#statIn').textContent=fmt(mi);$('#statOut').textContent=fmt(mo);$('#statNet').textContent=fmt(mi-mo);
+  const days=new Date().getDate();$('#statAvg').textContent=fmt(days?mo/days:0);
+  // last 6 months chart
+  const labels=[],ins=[],outs=[];
+  for(let i=5;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);const mk=monthKey(d);labels.push(d.toLocaleDateString('en-GB',{month:'short'}));const l=txs().filter(t=>monthKey(t.date)===mk);ins.push(sumType(l,'income'));outs.push(sumType(l,'expense'));}
+  drawBars($('#chartMonths'),labels,ins,outs);
+  const wLabels=[],wVals=[];
+  for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const key=d.toDateString();wLabels.push(d.toLocaleDateString('en-GB',{weekday:'short'}));wVals.push(txs().filter(t=>t.type==='expense'&&new Date(t.date).toDateString()===key).reduce((s,t)=>s+Number(t.amount),0));}
+  drawBars($('#chartWeek'),wLabels,null,wVals);
+  const byCat={};mt.filter(t=>t.type==='expense').forEach(t=>byCat[t.category]=(byCat[t.category]||0)+Number(t.amount));
+  drawDonut($('#chartCats'),byCat);
+  $('#catLegend').innerHTML=Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([c,v],i)=>'<div class="list-row"><span>'+DONUT_COLORS[i%DONUT_COLORS.length]+' '+catIcon(c)+' '+esc(c)+'</span><b>'+fmt(v)+'</b></div>').join('')||'<div class="empty">No expenses this month yet.</div>';
+  const allCat={};txs().filter(t=>t.type==='expense').forEach(t=>allCat[t.category]=(allCat[t.category]||0)+Number(t.amount));
+  const top=Object.entries(allCat).sort((a,b)=>b[1]-a[1]).slice(0,6),max=top.length?top[0][1]:1;
+  $('#topCats').innerHTML=top.map(([c,v])=>'<div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:13.5px"><span>'+catIcon(c)+' '+esc(c)+'</span><b>'+fmt(v)+'</b></div><div class="progress"><i style="width:'+(v/max*100)+'%"></i></div></div>').join('')||'<div class="empty">No data yet.</div>';}
+const DONUT_COLORS=['🟢','🔵','🟠','🟣','🔴','🟡','⚫'];
+const DONUT_HEX=['#0ba360','#2563eb','#f59e0b','#7c3aed','#e63946','#eab308','#334155'];
+function setupCanvas(cv){const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;cv.width=Math.max(300,r.width)*dpr;cv.height=(cv.id==='chartMonths'?230:200)*dpr;const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);return{ctx,W:Math.max(300,r.width),H:cv.id==='chartMonths'?230:200}}
+function drawBars(cv,labels,ins,outs){if(!cv||state.view!=='stats')return;const{ctx,W,H}=setupCanvas(cv);const dark=state.data.settings.dark;ctx.clearRect(0,0,W,H);
+  const all=[...(ins||[]),...(outs||[])],max=Math.max(...all,1)*1.15,base=H-34,top=12,bw=Math.min(26,(W-30)/labels.length/3);
+  ctx.strokeStyle=dark?'#24352d':'#e5ede9';ctx.beginPath();ctx.moveTo(8,base);ctx.lineTo(W-8,base);ctx.stroke();
+  ctx.font='11px system-ui';ctx.textAlign='center';
+  labels.forEach((lab,i)=>{const cx=20+(W-40)*(labels.length===1?.5:i/(labels.length-1||1));
+    if(ins){const h=(ins[i]/max)*(base-top);ctx.fillStyle='#0ba360';roundRect(ctx,cx-bw-2,base-h,bw,h,5);ctx.fill();}
+    if(outs){const h=(outs[i]/max)*(base-top);ctx.fillStyle='#e63946';roundRect(ctx,cx+2,base-h,bw,h,5);ctx.fill();}
+    ctx.fillStyle=dark?'#93a89d':'#71857b';ctx.fillText(lab,cx,H-16);});
+  ctx.textAlign='left';ctx.fillStyle='#0ba360';ctx.fillText('■ Cash In',10,14);ctx.fillStyle='#e63946';ctx.fillText('■ Cash Out',84,14);}
+function roundRect(ctx,x,y,w,h,r){r=Math.min(r,h);ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,0);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function drawDonut(cv,byCat){if(!cv||state.view!=='stats')return;const{ctx,W,H}=setupCanvas(cv);ctx.clearRect(0,0,W,H);
+  const entries=Object.entries(byCat),total=entries.reduce((s,e)=>s+e[1],0);if(!total){ctx.fillStyle='#71857b';ctx.font='14px system-ui';ctx.textAlign='center';ctx.fillText('No expense data this month',W/2,H/2);return}
+  let start=-Math.PI/2;const cx=W/2,cy=H/2,R=Math.min(W,H)/2-14;
+  entries.forEach(([c,v],i)=>{const ang=v/total*Math.PI*2;ctx.beginPath();ctx.arc(cx,cy,R,start,start+ang);ctx.arc(cx,cy,R*.58,start+ang,start,true);ctx.closePath();ctx.fillStyle=DONUT_HEX[i%DONUT_HEX.length];ctx.fill();start+=ang;});
+  ctx.fillStyle=state.data.settings.dark?'#ecf5f0':'#10231b';ctx.font='900 15px system-ui';ctx.textAlign='center';ctx.fillText(fmt(total),cx,cy+5);}
+function renderAccounts(){
+  $('#accountCards').innerHTML=state.data.accounts.map(a=>{const list=txs().filter(t=>t.account===a.id);
+    return '<div class="card" style="cursor:pointer" onclick="selectAccount(\''+a.id+'\')"><div style="display:flex;justify-content:space-between;align-items:center"><div><b style="font-size:16px">'+catIcon(a.type==='Cash'?'Cash':'Bank')+' '+esc(a.name)+'</b><div style="color:var(--muted);font-size:12.5px">'+esc(a.type)+' · '+list.length+' entries · Opening '+fmt(a.opening)+'</div></div><div style="text-align:right"><div style="font-size:19px;font-weight:900">'+fmt(accBalance(a.id))+'</div><span class="tag">Traceable ✓</span></div></div></div>'}).join('');
+  const opts=state.data.accounts.map(a=>'<option value="'+a.id+'">'+esc(a.name)+' · '+fmt(accBalance(a.id))+'</option>').join('');
+  $('#trFrom').innerHTML=opts;$('#trTo').innerHTML=opts;if(state.data.accounts[1])$('#trTo').value=state.data.accounts[1].id;
+  renderAccountTx();}
+function selectAccount(id){state.accFilter=id;showView('accounts')}
+function renderAccountTx(){const id=state.accFilter;
+  $('#clearAccFilter').classList.toggle('hidden',!id);
+  const acc=state.data.accounts.find(a=>a.id===id);
+  $('#accTxTitle').textContent=acc?'Transactions · '+acc.name+' ('+fmt(accBalance(id))+')':'Account Transactions · All';
+  const list=id?txs().filter(t=>t.account===id):txs().slice(0,30);
+  $('#accountTx').innerHTML=list.map(t=>txHTML(t)).join('')||'<div class="empty">No transactions for this account yet.</div>'}
+function addAccount(){const name=$('#accName').value.trim();if(!name)return toast('⚠️ Enter an account name');
+  state.data.accounts.push({id:uid(),name,type:$('#accType').value,opening:parseFloat($('#accOpening').value)||0});
+  $('#accName').value='';$('#accOpening').value='';persist();renderAll();toast('🏦 Account added: '+name)}
+function deleteAccount(id){if(txs().some(t=>t.account===id))return toast('⚠️ This account has transactions — cannot delete it');
+  state.data.accounts=state.data.accounts.filter(a=>a.id!==id);persist();renderAll();toast('Account deleted')}
+function transfer(){const from=$('#trFrom').value,to=$('#trTo').value,amt=parseFloat($('#trAmount').value);
+  if(from===to)return toast('⚠️ Choose two different accounts');if(!amt||amt<=0)return toast('⚠️ Enter a valid amount');
+  const now=new Date().toISOString(),fa=state.data.accounts.find(a=>a.id===from),ta=state.data.accounts.find(a=>a.id===to);
+  txs().unshift({id:uid(),type:'expense',amount:amt,category:'Transfer Out',account:from,note:'Transfer to '+(ta?ta.name:''),date:now});
+  txs().unshift({id:uid(),type:'income',amount:amt,category:'Transfer In',account:to,note:'Transfer from '+(fa?fa.name:''),date:now});
+  persist();renderAll();toast('🔁 Transfer done · balances updated everywhere')}
+function renderBudget(){
+  $('#budgetCategory').innerHTML='<option>Overall</option>'+state.data.categories.expense.map(c=>'<option>'+esc(c)+'</option>').join('');
+  $('#budgetList').innerHTML=state.data.budgets.map(b=>{const spent=spentFor(b.category,nowMonth()),pct=b.amount?spent/b.amount*100:0;
+    return '<div class="card"><div style="display:flex;justify-content:space-between;gap:10px"><b>'+(b.category==='Overall'?'🎯 Overall':catIcon(b.category)+' '+esc(b.category))+'</b><button class="icon-btn" onclick="deleteBudget(\''+b.id+'\')">🗑</button></div><div style="color:var(--muted);font-size:13px;margin-top:5px">Spent '+fmt(spent)+' of '+fmt(b.amount)+' · '+pct.toFixed(0)+'% this month</div><div class="progress"><i class="'+(pct>=100?'over':pct>=80?'warn':'')+'" style="width:'+Math.min(100,pct)+'%"></i></div>'+(pct>=100?'<div class="alert over">🚨 Budget exceeded for '+esc(b.category)+'!</div>':pct>=80?'<div class="alert warn">⚠️ 80%+ used — slow down on '+esc(b.category)+'.</div>':'')+'</div>'}).join('')||'<div class="card"><div class="empty">No budgets yet. Set your first one below 👇</div></div>'}
+function saveBudget(){const cat=$('#budgetCategory').value,amt=parseFloat($('#budgetAmount').value);if(!amt||amt<=0)return toast('⚠️ Enter a valid budget amount');
+  const ex=state.data.budgets.find(b=>b.category===cat);if(ex)ex.amount=amt;else state.data.budgets.push({id:uid(),category:cat,amount:amt});
+  $('#budgetAmount').value='';persist();renderAll();toast('🎯 Budget saved for '+cat)}
+function deleteBudget(id){state.data.budgets=state.data.budgets.filter(b=>b.id!==id);persist();renderAll()}
+function renderSettings(){
+  $('#profileInfo').innerHTML='<b>'+esc(state.user.name)+'</b><br><span style="color:var(--muted);font-size:13px">'+esc(state.user.email)+'</span>';
+  const mk=(type,list)=>list.map(c=>'<div class="list-row"><span>'+catIcon(c)+' '+esc(c)+'</span><button class="icon-btn" onclick="deleteCategory(\''+type+'\',\''+esc(c).replace(/'/g,"\\'")+'\')">🗑</button></div>').join('');
+  $('#incomeCatList').innerHTML=mk('income',state.data.categories.income);
+  $('#expenseCatList').innerHTML=mk('expense',state.data.categories.expense);
+  $('#gsUrl').value=state.data.settings.gsUrl||'';}
+function addCategory(type){const input=type==='income'?$('#newIncomeCat'):$('#newExpenseCat'),v=input.value.trim();if(!v)return;
+  if(!state.data.categories[type].includes(v))state.data.categories[type].push(v);input.value='';persist();renderAll();toast('✅ Category added: '+v)}
+function deleteCategory(type,c){state.data.categories[type]=state.data.categories[type].filter(x=>x!==c);persist();renderAll()}
+function toggleDark(){state.data.settings.dark=!state.data.settings.dark;persist();renderAll()}
+function renderStatementForm(){const opts='<option value="all">All Accounts</option>'+state.data.accounts.map(a=>'<option value="'+a.id+'">'+esc(a.name)+' · '+fmt(accBalance(a.id))+'</option>').join('');
+  $('#stmtAccount').innerHTML=opts;if(!$('#stmtMonth').value)$('#stmtMonth').value=nowMonth();onStmtPreset(true)}
+function onStmtPreset(keep){const v=$('#stmtPreset').value;$('#stmtMonthWrap').classList.toggle('hidden',v==='custom'||v==='week'||v==='lastWeek');$('#stmtCustomWrap').classList.toggle('hidden',v!=='custom');
+  if(v==='lastMonth'&&!keep){const d=new Date();d.setMonth(d.getMonth()-1);$('#stmtMonth').value=monthKey(d)}if(v==='month'&&!keep)$('#stmtMonth').value=nowMonth()}
+function stmtRange(){const v=$('#stmtPreset').value;let from,to=new Date();
+  if(v==='custom'){from=new Date($('#stmtFrom').value);to=new Date($('#stmtTo').value);to.setHours(23,59,59,999)}
+  else if(v==='week'||v==='lastWeek'){const d=new Date(),day=(d.getDay()+6)%7;d.setDate(d.getDate()-day+(v==='lastWeek'?-7:0));d.setHours(0,0,0,0);from=new Date(d);to=new Date(d);to.setDate(to.getDate()+6);to.setHours(23,59,59,999)}
+  else{const m=$('#stmtMonth').value||nowMonth(),[y,mo]=m.split('-').map(Number);from=new Date(y,mo-1,1);to=new Date(y,mo,0,23,59,59,999)}
+  return{from,to}}
+function generateStatement(){const{from,to}=stmtRange();if(isNaN(from)||isNaN(to))return toast('⚠️ Choose valid dates');
+  const acc=$('#stmtAccount').value,type=$('#stmtType').value;
+  state.stmtRows=txs().filter(t=>{const d=new Date(t.date);return d>=from&&d<=to&&(acc==='all'||t.account===acc)&&(type==='all'||t.type===type)}).slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
+  state.stmtMeta={from,to,acc,type};
+  const inc=sumType(state.stmtRows,'income'),out=sumType(state.stmtRows,'expense');
+  $('#stmtPreview').innerHTML='<h3>Statement Preview</h3><p style="color:var(--muted);font-size:13px">'+fmtD(from)+' → '+fmtD(to)+' · '+state.stmtRows.length+' entries</p>'+
+  '<div class="grid2" style="margin-top:10px"><div><small style="color:var(--muted);font-weight:700">CASH IN</small><div class="stat-num" style="color:var(--green)">'+fmt(inc)+'</div></div><div><small style="color:var(--muted);font-weight:700">CASH OUT</small><div class="stat-num" style="color:var(--red)">'+fmt(out)+'</div></div></div>'+
+  '<p style="font-weight:800;margin-top:10px">Net: '+fmt(inc-out)+'</p>'+state.stmtRows.map(t=>txHTML(t,false)).join('')||''}
+function downloadPDF(){if(!state.stmtRows.length)generateStatement();if(!state.stmtRows.length)return toast('No entries in this period');
+  const{from,to}=state.stmtMeta,inc=sumType(state.stmtRows,'income'),out=sumType(state.stmtRows,'expense');
+  const rows=state.stmtRows.map(t=>{const a=state.data.accounts.find(x=>x.id===t.account);return '<tr><td>'+fmtDT(t.date)+'</td><td>'+esc(t.category)+'</td><td>'+esc(a?a.name:'')+'</td><td>'+esc(t.note||'')+'</td><td style="color:'+(t.type==='income'?'#07874f':'#d92334')+'">'+(t.type==='income'?'+':'-')+' '+fmt(t.amount)+'</td></tr>'}).join('');
+  $('#printArea').innerHTML='<div style="display:flex;align-items:center;gap:12px"><img src="icon.svg" width="54" height="54"><div><h1 style="margin:0">Spendly · Account Statement</h1><div>'+esc(state.user.name)+' · '+esc(state.user.email)+'</div><div>Period: '+fmtD(from)+' to '+fmtD(to)+' · Currency: SAR</div></div></div>'+
+  '<p><b>Total Cash In:</b> '+fmt(inc)+' &nbsp; <b>Total Cash Out:</b> '+fmt(out)+' &nbsp; <b>Net:</b> '+fmt(inc-out)+' &nbsp; <b>Current Total Balance:</b> '+fmt(totalBalance())+'</p>'+
+  '<table><tr><th>Date & Time</th><th>Category</th><th>Account</th><th>Note</th><th>Amount (SAR)</th></tr>'+rows+'</table><p style="font-size:11px;color:#666">Generated by Spendly on '+fmtDT(new Date().toISOString())+' · Personal statement</p>';
+  window.print();}
+function exportCSV(){if(!state.stmtRows.length)generateStatement();
+  const rows=[['Date & Time','Type','Category','Account','Note','Amount (SAR)'],...state.stmtRows.map(t=>[fmtDT(t.date),t.type==='income'?'Cash In':'Cash Out',t.category,(state.data.accounts.find(a=>a.id===t.account)||{}).name||'',t.note||'',t.amount])];
+  downloadBlob(rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\n'),'spendly-statement.csv','text/csv');toast('⬇ CSV downloaded — opens in Excel')}
+function exportJSON(){downloadBlob(JSON.stringify(state.data,null,2),'spendly-backup.json','application/json');toast('💾 Backup downloaded')}
+function importJSON(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{state.data=Object.assign(defaultData(),JSON.parse(r.result));persist();renderAll();toast('✅ Backup restored')}catch(e){toast('⚠️ Invalid backup file')}};r.readAsText(f)}
+function downloadBlob(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
+function clearAllData(){if(!confirm('Delete ALL transactions? This cannot be undone.'))return;state.data.transactions=[];persist();renderAll();toast('All transactions deleted')}
+function seedDemo(silent){const t=Date.now(),day=864e5,push=(type,amount,category,account,daysAgo,note)=>state.data.transactions.push({id:uid()+Math.random(),type,amount,category,account,note:note||'',date:new Date(t-daysAgo*day).toISOString()});
+  if(state.data.transactions.length&&!silent&&!confirm('Add demo transactions to your current data?'))return;
+  push('income',8500,'Salary','bank',2,'Monthly salary');push('expense',420,'Groceries','cash',1,'Panda weekly shopping');push('expense',150,'Fuel','bank',1,'Car fuel');push('expense',89,'Food & Dining','cash',0,'Lunch with friends');push('expense',1200,'Rent','bank',5,'Monthly rent share');push('income',750,'Freelance','bank',4,'Design project');push('expense',230,'Shopping','bank',3,'Online order');
+  state.data.accounts[0].opening=500;state.data.accounts[1].opening=2000;persist();renderAll();if(!silent)toast('🎉 Demo transactions added')}
+async function syncPush(){const url=$('#gsUrl').value.trim();state.data.settings.gsUrl=url;persist();
+  if(!url)return $('#syncStatus').innerHTML='<div class="err">Paste your Google Apps Script Web App URL first (see README steps).</div>';
+  $('#syncStatus').innerHTML='<div class="ok">⏳ Pushing to your Google Sheet…</div>';
+  try{await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'save',email:state.user.email,data:state.data})});
+    $('#syncStatus').innerHTML='<div class="ok">✅ Push sent to Google Sheets. Open your sheet to verify the “SpendlyData” tab.</div>';}
+  catch(e){$('#syncStatus').innerHTML='<div class="err">❌ Sync failed. Check the URL and your internet connection.</div>'}}
+async function syncPull(){const url=$('#gsUrl').value.trim();state.data.settings.gsUrl=url;persist();
+  if(!url)return $('#syncStatus').innerHTML='<div class="err">Paste your Google Apps Script Web App URL first (see README steps).</div>';
+  $('#syncStatus').innerHTML='<div class="ok">⏳ Pulling from your Google Sheet…</div>';
+  try{const r=await fetch(url+'?action=load&email='+encodeURIComponent(state.user.email));const j=await r.json();
+    if(j&&j.data){state.data=Object.assign(defaultData(),j.data);state.data.settings.gsUrl=url;persist();renderAll();$('#syncStatus').innerHTML='<div class="ok">✅ Data restored from Google Sheets.</div>'}
+    else $('#syncStatus').innerHTML='<div class="err">No saved data found in your Google Sheet yet. Push first.</div>';}
+  catch(e){$('#syncStatus').innerHTML='<div class="err">❌ Pull failed. Check deployment access (“Anyone”) and the URL.</div>'}}
+function renderAll(){if(!state.user||!state.data)return;
+  renderDashboard();renderAccounts();renderBudget();renderSettings();renderStatementForm();
+  if(state.view==='stats')setTimeout(renderStats,30);}
+
+/* ---------- boot ---------- */
+(function boot(){const email=localStorage.getItem('spendly_session');
+  if(email){const u=users().find(x=>x.email===email);if(u){state.user=u;state.data=loadData(email);enterApp();return}}
+  applyTheme();})();
+if('serviceWorker' in navigator&&location.protocol.startsWith('http')){/* PWA-ready: add sw.js later if needed */}
+</script>
+</body>
+</html>
