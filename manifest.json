@@ -1,0 +1,15 @@
+{
+  "name": "Spendly — Personal Expense Tracker",
+  "short_name": "Spendly",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#063f31",
+  "theme_color": "#0ba360",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }],
+  "shortcuts": [
+    { "name": "Cash In", "short_name": "Cash In", "url": "./index.html?go=cashin", "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }] },
+    { "name": "Cash Out", "short_name": "Cash Out", "url": "./index.html?go=cashout", "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }] },
+    { "name": "Accounts", "short_name": "Accounts", "url": "./index.html?go=accounts", "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }] },
+    { "name": "Dashboard", "short_name": "Dashboard", "url": "./index.html?go=dashboard", "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }] }
+  ]
+}
